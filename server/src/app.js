@@ -1,0 +1,45 @@
+import express from 'express';
+import cors from 'cors';
+import apiRoutes from './routes/api.js';
+
+const app = express();
+
+/**
+ * Configure global middleware and routes
+ */
+function createApp() {
+    // Middleware - Dynamic CORS based on environment
+    const allowedOrigins = process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',')
+        : ['http://localhost:3000', 'http://127.0.0.1:3000']; // Default for development
+
+    app.use(cors({
+        origin: (origin, callback) => {
+            // Allow requests with no origin (like mobile apps or Postman)
+            if (!origin) return callback(null, true);
+
+            if (allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        credentials: true,
+        optionsSuccessStatus: 200
+    }));
+    app.use(express.json({ limit: '50mb' })); // Increased limit for base64 image uploads
+
+    // Mount API routes
+    app.use('/api', apiRoutes);
+
+    // Global Error Handler
+    app.use((err, req, res, next) => {
+        console.error('[SERVER ERROR]', err);
+        res.status(500).json({ error: 'Internal Server Error', message: err.message });
+    });
+
+    return app;
+}
+
+export default createApp;

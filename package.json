@@ -1,0 +1,74 @@
+{
+  "name": "isuite-assistant-desktop",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "dev": "set NODE_ENV=development && electron .",
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:frontend": "cd frontend && npm run build",
+    "build:win": "electron-builder --win nsis",
+    "build:win:full": "npm run build:frontend && electron-builder --win nsis",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "install-server": "cd server && npm install",
+    "install-frontend": "cd frontend && npm install",
+    "install-all": "npm install && npm run install-server && npm run install-frontend",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "iSuite",
+  "license": "ISC",
+  "description": "Premium AI agent workspace for desktop.",
+  "build": {
+    "appId": "com.isuite.assistant",
+    "productName": "iSuite Assistant",
+    "icon": "build/icon.png",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".env",
+        "to": ".env"
+      },
+      {
+        "from": "server",
+        "to": "server",
+        "filter": ["**/*", "**/.*", "node_modules/**", "node_modules/**/.*", ".env"]
+      },
+      {
+        "from": "frontend/.next/standalone/frontend",
+        "to": "frontend",
+        "filter": ["**/*", "**/.*", "node_modules/**", "node_modules/**/.*", ".next/**", ".next/**/.*", ".env"]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.0",
+    "electron-reload": "^2.0.0-alpha.1"
+  }
+}

@@ -1,0 +1,49 @@
+name: Build Mac App
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install server dependencies
+        run: cd server && npm install
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm install
+
+      - name: Build Next.js frontend
+        run: cd frontend && npm run build
+
+      - name: Copy static assets to standalone
+        run: |
+          cp -r frontend/public frontend/.next/standalone/frontend/
+          cp frontend/.env frontend/.next/standalone/frontend/.env
+
+      - name: Build Mac DMG
+        run: npm run build:mac
+        env:
+          # Disable code signing for unsigned build
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload Mac DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: iSuite-Assistant-Mac
+          path: dist/*.dmg
+          retention-days: 7
