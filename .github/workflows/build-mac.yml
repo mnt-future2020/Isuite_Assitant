@@ -46,6 +46,9 @@ jobs:
         env:
           # Disable code signing for unsigned build
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Disable auto-publishing to GitHub releases
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+          CI: false
 
       - name: Upload Mac DMG
         uses: actions/upload-artifact@v4
