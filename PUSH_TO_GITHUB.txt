@@ -1,0 +1,65 @@
+================================================================================
+STEP-BY-STEP: Push to GitHub and Build Mac Installer
+================================================================================
+
+CURRENT STATUS: ✓ Code committed locally, ready to push
+
+NEXT STEPS:
+
+1. CREATE GITHUB REPO (if not done already)
+   - Go to: https://github.com/new
+   - Name: isuite-desktop (or any name)
+   - Visibility: PRIVATE (important - to protect API keys)
+   - Don't add README or .gitignore
+   - Click "Create repository"
+
+2. COPY YOUR REPO URL
+   After creating, GitHub shows commands. Look for this line:
+   https://github.com/YOUR_USERNAME/isuite-desktop.git
+
+   Copy this URL!
+
+3. ADD REMOTE & PUSH
+   Run these commands (replace YOUR_USERNAME with your GitHub username):
+
+   cd e:/IS/desktop
+   git branch -M main
+   git remote add origin https://github.com/YOUR_USERNAME/isuite-desktop.git
+   git push -u origin main
+
+   You may be asked to login to GitHub - use your credentials.
+
+4. TRIGGER MAC BUILD
+   - Go to your GitHub repo in browser
+   - Click "Actions" tab
+   - Click "Build Mac App" workflow
+   - Click "Run workflow" button (green dropdown)
+   - Click "Run workflow" to confirm
+   - Wait 10-15 minutes for build
+
+5. DOWNLOAD MAC INSTALLER
+   After build completes:
+   - Click on the completed workflow run
+   - Scroll down to "Artifacts" section
+   - Click "iSuite-Assistant-Mac" to download
+   - Unzip to get: iSuite Assistant-1.0.0.dmg
+
+6. SEND TO MAC FRIEND
+   - Upload .dmg to Google Drive / Dropbox / WeTransfer
+   - Send download link to your Mac friend
+   - They install like any Mac app
+
+================================================================================
+TROUBLESHOOTING:
+
+If build fails:
+- Check "Actions" tab for error logs
+- Most common: Missing dependencies or build errors
+- GitHub Actions is free (2000 mins/month)
+
+If you need to rebuild:
+- Make changes to code
+- Run: git add . && git commit -m "Fix something" && git push
+- Build triggers automatically OR manually trigger in Actions tab
+
+================================================================================
