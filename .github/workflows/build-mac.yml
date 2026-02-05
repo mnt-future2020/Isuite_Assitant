@@ -27,13 +27,19 @@ jobs:
       - name: Install frontend dependencies
         run: cd frontend && npm install
 
+      - name: Create frontend .env.local for build
+        run: |
+          echo "CONVEX_DEPLOYMENT=dev:lovable-partridge-695" > frontend/.env.local
+          echo "NEXT_PUBLIC_CONVEX_URL=https://lovable-partridge-695.convex.cloud" >> frontend/.env.local
+          echo "NEXT_PUBLIC_API_URL=http://localhost:3001" >> frontend/.env.local
+
       - name: Build Next.js frontend
         run: cd frontend && npm run build
 
       - name: Copy static assets to standalone
         run: |
           cp -r frontend/public frontend/.next/standalone/frontend/
-          cp frontend/.env frontend/.next/standalone/frontend/.env
+          cp frontend/.env.local frontend/.next/standalone/frontend/.env
 
       - name: Build Mac DMG
         run: npm run build:mac
