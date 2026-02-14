@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ import {
   Palette,
   Layers,
   Rocket,
+  Grid2X2,
 } from "lucide-react";
 
 interface AutoResizeProps {
@@ -77,6 +79,25 @@ export default function RuixenMoonChat({
     maxHeight: 150,
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [isAttachOpen, setIsAttachOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsAttachOpen(false);
+      }
+    }
+    if (isAttachOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isAttachOpen]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -150,7 +171,7 @@ export default function RuixenMoonChat({
           />
 
           {/* Footer Buttons */}
-          <div className="flex items-center justify-between p-3">
+          <div className="flex items-center justify-between p-3 relative">
             <input
               type="file"
               ref={fileInputRef}
@@ -161,21 +182,77 @@ export default function RuixenMoonChat({
                 e.target.value = ''; // Reset input
               }}
             />
-            <Button
+            <input
+              type="file"
+              ref={imageInputRef}
+              className="hidden"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileAttach(file);
+                e.target.value = ''; // Reset input
+              }}
+            />
+
+            {/* Attachment Dropdown Menu */}
+            {isAttachOpen && (
+              <div 
+                ref={menuRef}
+                className="absolute bottom-14 left-3 w-48 bg-[#1E1E1E] border border-neutral-800 rounded-xl shadow-lg overflow-hidden p-1.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+              >
+                <button
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                    setIsAttachOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                >
+                  <Paperclip className="w-4 h-4 text-neutral-400" />
+                  <span>Upload files</span>
+                </button>
+                <button
+                  onClick={() => {
+                    imageInputRef.current?.click();
+                    setIsAttachOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                >
+                  <ImageIcon className="w-4 h-4 text-neutral-400" />
+                  <span>Photos</span>
+                </button>
+                <div className="h-px bg-neutral-800 my-1" />
+                <button
+                  onClick={() => {
+                    router.push("/integrations");
+                    setIsAttachOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                >
+                  <Grid2X2 className="w-4 h-4 text-neutral-400" />
+                  <span>Explore Apps</span>
+                </button>
+              </div>
+            )}
+
+           <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-neutral-700"
-              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "text-white rounded-full hover:bg-neutral-700/60 hover:text-white transition-colors",
+                isAttachOpen && "bg-neutral-700/60"
+              )}
+              onClick={() => setIsAttachOpen(!isAttachOpen)}
             >
               <Paperclip className="w-4 h-4" />
             </Button>
+
 
             <div className="flex items-center gap-2">
               <Button
                 onClick={handleSend}
                 disabled={isLoading || (!input.trim() && attachments.length === 0)}
                 className={cn(
-                  "flex items-center gap-1 px-3 py-2 rounded-lg transition-colors",
+                  "flex items-center justify-center w-9 h-9 rounded-full transition-colors",
                   isLoading || (!input.trim() && attachments.length === 0)
                     ? "bg-neutral-700 text-neutral-400 cursor-not-allowed"
                     : "bg-white text-black hover:bg-neutral-200"

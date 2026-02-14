@@ -883,7 +883,7 @@ export default function Home() {
                   </h2>
               </div>
               <button 
-                className="new-chat-btn text-white hover:text-white/80" 
+                className="new-chat-btn text-white hover:bg-white/10" 
                 onClick={startNewChat}
                 title="New Chat"
               >
