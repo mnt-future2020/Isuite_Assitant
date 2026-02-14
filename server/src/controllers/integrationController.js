@@ -4,6 +4,7 @@ async function getApps(req, res) {
     try {
         const apps = await integrationService.listApps();
         res.json({ toolkits: apps });
+        
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

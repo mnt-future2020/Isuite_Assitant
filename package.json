@@ -31,20 +31,25 @@
       "preload.js",
       "package.json"
     ],
+    "asar": false,
+    "afterPack": "./build-hook.js",
     "extraResources": [
-      {
-        "from": ".env",
-        "to": ".env"
-      },
+      ".env",
       {
         "from": "server",
-        "to": "server",
-        "filter": ["**/*", "**/.*", "node_modules/**", "node_modules/**/.*", ".env"]
+        "to": "server"
       },
       {
         "from": "frontend/.next/standalone/frontend",
-        "to": "frontend",
-        "filter": ["**/*", "**/.*", "node_modules/**", "node_modules/**/.*", ".next/**", ".next/**/.*", ".env"]
+        "to": "frontend"
+      },
+      {
+        "from": "frontend/.next/static",
+        "to": "frontend/.next/static"
+      },
+      {
+        "from": "frontend/public",
+        "to": "frontend/public"
       }
     ],
     "win": {
@@ -69,6 +74,7 @@
   "devDependencies": {
     "electron": "^39.2.7",
     "electron-builder": "^26.0.0",
-    "electron-reload": "^2.0.0-alpha.1"
+    "electron-reload": "^2.0.0-alpha.1",
+    "fs-extra": "^11.3.3"
   }
 }

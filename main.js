@@ -67,7 +67,7 @@ function startServer() {
     const serverEnv = {
       ...process.env,
       NODE_ENV: isDev ? 'development' : 'production',
-      PORT: '3001',
+      PORT: '23121',
     };
 
     serverProcess = spawn('node', ['server.js'], {
@@ -113,7 +113,7 @@ function startFrontend() {
     const frontendEnv = {
       ...process.env,
       NODE_ENV: 'production',
-      PORT: '3000',
+      PORT: '23120',
       HOSTNAME: '127.0.0.1',
     };
 
@@ -182,7 +182,7 @@ function createWindow() {
     }
   });
 
-  const frontendUrl = 'http://127.0.0.1:3000';
+  const frontendUrl = 'http://127.0.0.1:23120';
   console.log('[MAIN] Loading frontend from:', frontendUrl);
   mainWindow.loadURL(frontendUrl);
 
