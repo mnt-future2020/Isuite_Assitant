@@ -367,7 +367,11 @@ export default function Home() {
     
     // Pass preferred model from settings
     const preferredModel = settings?.preferredModel || "claude-3-5-sonnet-latest";
-    await sendMessage(input, "claude", preferredModel, attachments);
+    const newChatId = await sendMessage(input, "claude", preferredModel, attachments);
+    
+    if (newChatId && !selectedConversationId) {
+      setSelectedConversationId(newChatId);
+    }
     
     setInput("");
     setAttachments([]); // Clear attachments after sending
@@ -879,7 +883,7 @@ export default function Home() {
                   </h2>
               </div>
               <button 
-                className="new-chat-btn text-white hover:bg-white/10" 
+                className="new-chat-btn text-white hover:text-white/80" 
                 onClick={startNewChat}
                 title="New Chat"
               >

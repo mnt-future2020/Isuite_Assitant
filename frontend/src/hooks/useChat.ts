@@ -73,7 +73,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
             await updateTitle({ conversationId, title });
           }
         }
-      } catch (error) {
+      } catch {
         // Silently fail - title will remain "New Chat"
       }
     },
@@ -156,7 +156,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
                     ),
                   );
                 }
-              } catch (e) {}
+              } catch {}
             }
           }
         }
@@ -185,6 +185,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
         setIsLoading(false);
         abortControllerRef.current = null;
       }
+      return chatId;
     },
     [activeConversationId, user, licenseKey, createConversation, sendMessageMutation, generateAITitle],
   );
