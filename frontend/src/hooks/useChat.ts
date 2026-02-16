@@ -43,6 +43,8 @@ export function useChat(conversationId: Id<"conversations"> | null) {
 
   // Sync with Convex messages when conversationId changes
   useEffect(() => {
+    if (isLoading) return; // Don't sync while streaming (prevents double loader glitch)
+    
     if (convexMessages) {
       setMessages(
         convexMessages.map((m) => ({
@@ -55,7 +57,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
       setMessages([]);
     }
     setActiveConversationId(conversationId);
-  }, [convexMessages, conversationId]);
+  }, [convexMessages, conversationId, isLoading]);
 
   // Generate AI title in background (fire and forget)
   const generateAITitle = useCallback(

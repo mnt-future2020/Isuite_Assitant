@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, EB_Garamond, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 import { ConvexClientProvider } from "./ConvexClientProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const ebGaramond = EB_Garamond({
+  variable: "--font-serif",
+  subsets: ["latin"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
 });
 
@@ -27,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${ebGaramond.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>

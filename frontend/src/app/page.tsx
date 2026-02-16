@@ -80,17 +80,11 @@ export default function Home() {
   };
 
   return (
-    <div className="app-container" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div className="flex h-screen overflow-hidden bg-background">
       <AppSidebar />
 
       {/* Main Content */}
-      <main className="main-content" style={{ 
-        background: 'var(--bg-main)',
-        flex: 1,
-        transition: 'margin-left 0.3s ease-in-out',
-        width: '100%'
-      }}>
-
+      <main className="relative flex flex-col flex-1 w-full h-full overflow-hidden transition-all duration-300 ease-in-out bg-background">
         <RuixenMoonChat 
           input={input}
           setInput={setInput}
@@ -99,7 +93,7 @@ export default function Home() {
           handleFileAttach={handleFileAttach}
           attachments={attachments}
           removeAttachment={(index) => setAttachments(prev => prev.filter((_, i) => i !== index))}
-          messages={messages.length > 0 ? messages : undefined}
+          messages={messages || []}
           conversationTitle={conversations.find(c => c._id === selectedConversationId)?.title}
           onNewChat={startNewChat}
         />

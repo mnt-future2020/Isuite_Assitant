@@ -4,6 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import {
   Layout,
   SquarePen,
@@ -22,9 +23,6 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import {
   useLicenseAuth,
-  LicenseAuthenticated,
-  LicenseUnauthenticated,
-  LicenseLoading,
 } from "@/app/ConvexClientProvider";
 
 function cn(...inputs: ClassValue[]) {
@@ -53,78 +51,34 @@ function LicenseKeyInput() {
   };
 
   return (
-    <div style={{ padding: "12px" }}>
-      <div style={{ marginBottom: 8, fontSize: 12, color: "#9ca3af" }}>
-        Enter your license key to activate
+    <div className="p-4 space-y-3 border-t border-border">
+      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+        Activate License
       </div>
       <input
         type="text"
         placeholder="XXXX-XXXX-XXXX-XXXX"
         value={licenseKey}
         onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
-        style={{
-          width: "100%",
-          padding: "8px 12px",
-          borderRadius: 8,
-          border: "1px solid #374151",
-          background: "#1f2937",
-          color: "#e5e7eb",
-          marginBottom: 8,
-          fontSize: 13,
-          fontFamily: "monospace",
-          outline: "none",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = "#3b82f6";
-          e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = "#374151";
-          e.currentTarget.style.boxShadow = "none";
-        }}
+        className="w-full bg-transparent border-b border-border py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground transition-colors"
       />
       {error && (
-        <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 8 }}>
+        <div className="text-destructive text-xs">
           {error}
         </div>
       )}
       <button
         onClick={handleActivate}
         disabled={isActivating}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          padding: "10px 16px",
-          borderRadius: 8,
-          background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-          color: "white",
-          border: "none",
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: isActivating ? "not-allowed" : "pointer",
-          opacity: isActivating ? 0.7 : 1,
-          transition: "all 0.2s",
-        }}
-        onMouseEnter={(e) => {
-          if (!isActivating) {
-            e.currentTarget.style.transform = "translateY(-1px)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "translateY(0)";
-        }}
+        className="w-full flex items-center justify-center gap-2 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
       >
-        <Key size={16} />
-        <span>{isActivating ? "Activating..." : "Activate License"}</span>
+        <Key size={14} />
+        <span>{isActivating ? "Activating..." : "Activate"}</span>
       </button>
     </div>
   );
 }
 
-// User License Card Component
 // User License Card Component - smooth transitions for collapsed/expanded states
 function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
   const { user, logout } = useLicenseAuth();
@@ -134,69 +88,18 @@ function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
   if (isCollapsed) {
     // Collapsed state - stacked vertically
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "12px",
-        }}
-      >
+      <div className="flex flex-col items-center gap-3 py-4 border-t border-border">
         <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontSize: 14,
-            fontWeight: 600,
-            border: "2px solid #1e3a8a",
-            cursor: "pointer",
-            transition: "all 0.2s",
-            flexShrink: 0,
-          }}
+          className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-semibold"
           title={user.email}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "scale(1.05)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "scale(1)";
-          }}
         >
           {user.email?.charAt(0).toUpperCase() || "U"}
         </div>
 
         <button
           onClick={logout}
-          style={{
-            background: "transparent",
-            border: "1px solid #2a2a2a",
-            cursor: "pointer",
-            padding: 8,
-            borderRadius: 8,
-            color: "#9ca3af",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all 0.2s",
-            width: "100%",
-            flexShrink: 0,
-          }}
+          className="text-muted-foreground hover:text-destructive transition-colors"
           title="Sign out"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)";
-            e.currentTarget.style.color = "#ef4444";
-            e.currentTarget.style.borderColor = "#ef4444";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "#9ca3af";
-            e.currentTarget.style.borderColor = "#2a2a2a";
-          }}
         >
           <LogOut size={16} />
         </button>
@@ -206,111 +109,29 @@ function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
 
   // Expanded state - horizontal layout
   return (
-    <div
-      className="user-card"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "10px 12px",
-        borderRadius: "12px",
-        background: "rgba(38, 38, 38, 0.5)",
-        border: "1px solid #2a2a2a",
-        transition: "all 0.2s",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(38, 38, 38, 0.8)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "rgba(38, 38, 38, 0.5)";
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flex: 1,
-          minWidth: 0,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontSize: 14,
-            fontWeight: 600,
-            border: "2px solid #1e3a8a",
-            flexShrink: 0,
-          }}
-        >
-          {user.email?.charAt(0).toUpperCase() || "U"}
-        </div>
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#e5e7eb",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {user.name || user.email}
+    <div className="p-4 border-t border-border">
+      <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-semibold shrink-0">
+            {user.email?.charAt(0).toUpperCase() || "U"}
           </div>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#9ca3af",
-              textTransform: "capitalize",
-            }}
-          >
-            {user.plan} Plan
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-medium text-foreground truncate">
+              {user.name || user.email}
+            </span>
+            <span className="text-xs text-muted-foreground capitalize truncate">
+              {user.plan} Plan
+            </span>
           </div>
         </div>
+        <button
+          onClick={logout}
+          className="text-muted-foreground hover:text-destructive transition-colors p-1"
+          title="Sign out"
+        >
+          <LogOut size={16} />
+        </button>
       </div>
-      <button
-        onClick={logout}
-        style={{
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-          padding: 6,
-          borderRadius: 6,
-          color: "#9ca3af",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          transition: "all 0.2s",
-          flexShrink: 0,
-          marginLeft: 8,
-        }}
-        title="Sign out"
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)";
-          e.currentTarget.style.color = "#ef4444";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "transparent";
-          e.currentTarget.style.color = "#9ca3af";
-        }}
-      >
-        <LogOut size={16} />
-      </button>
     </div>
   );
 }
@@ -343,534 +164,235 @@ export default function AppSidebar() {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const toggleSidebarCollapse = () => setIsSidebarCollapsed(!isSidebarCollapsed);
 
+  // State for delete modal
+  const [deleteConfig, setDeleteConfig] = useState<{ isOpen: boolean; chatId: string | null; title: string }>({
+    isOpen: false,
+    chatId: null,
+    title: "",
+  });
+
+  const handleDeleteClick = (e: React.MouseEvent, chatId: string, title: string) => {
+    e.stopPropagation();
+    setDeleteConfig({ isOpen: true, chatId, title });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfig.chatId) {
+      await deleteConversation({ conversationId: deleteConfig.chatId as Id<"conversations"> });
+      if (window.location.search.includes(deleteConfig.chatId)) {
+        router.push("/");
+      }
+      setDeleteConfig({ isOpen: false, chatId: null, title: "" });
+    }
+  };
+
   return (
     <>
       {/* Mobile hamburger button */}
       <button
         onClick={toggleSidebar}
-        className="fixed top-6 left-6 z-50 p-3 rounded-lg bg-neutral-900/80 backdrop-blur-md shadow-lg border border-neutral-700 md:hidden hover:bg-neutral-800 transition-all duration-200"
+        className="fixed top-4 left-4 z-50 p-2 md:hidden text-foreground bg-background border border-border rounded-md shadow-sm"
         aria-label="Toggle sidebar"
       >
         {isSidebarOpen ? (
-          <X className="h-5 w-5 text-neutral-200" />
+          <X className="h-5 w-5" />
         ) : (
-          <Menu className="h-5 w-5 text-neutral-200" />
+          <Menu className="h-5 w-5" />
         )}
       </button>
 
       {/* Mobile overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300"
           onClick={toggleSidebar}
         />
       )}
 
+      {/* Delete Confirmation Modal */}
+      {deleteConfig.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-background border border-border rounded-lg shadow-lg p-6 animate-in zoom-in-95 duration-200 mx-4">
+            <div className="flex flex-col space-y-2 text-center sm:text-left">
+              <h3 className="text-lg font-semibold text-foreground">
+                Delete Chat?
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                This will permanently delete <span className="font-medium text-foreground">&quot;{deleteConfig.title}&quot;</span>. This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
+              <button
+                onClick={() => setDeleteConfig({ isOpen: false, chatId: null, title: "" })}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Left Sidebar - Navigation */}
       <aside
-        className={cn("left-sidebar", !isSidebarOpen && "hidden")}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          height: "100vh",
-          background: "linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%)",
-          borderRight: "1px solid #2a2a2a",
-          width: isSidebarCollapsed ? "80px" : "260px",
-          minWidth: isSidebarCollapsed ? "80px" : "260px",
-          transition:
-            "width 0.3s ease-in-out, min-width 0.3s ease-in-out, transform 0.3s ease-in-out",
-          position: "relative",
-          zIndex: 40,
-          overflow: "hidden",
-        }}
+        className={cn(
+          "fixed md:relative z-40 h-full bg-background border-r border-border transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] flex flex-col",
+          !isSidebarOpen && "hidden md:flex md:w-0 md:min-w-0 md:overflow-hidden md:border-none",
+          isSidebarCollapsed ? "w-[72px]" : "w-[280px]"
+        )}
       >
-        <div
-          className="sidebar-brand"
-          style={{
-            padding: "20px 16px",
-            borderBottom: "1px solid #2a2a2a",
-            background: "rgba(26, 26, 26, 0.5)",
-            backdropFilter: "blur(10px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            minHeight: "80px",
-            flexShrink: 0,
-            position: "relative",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              flex: 1,
-              overflow: "hidden",
-            }}
-          >
-            <div
-              className="sidebar-logo"
-              style={{
-                width: "40px",
-                height: "40px",
-                background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-                borderRadius: "12px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <Layout size={20} style={{ color: "white" }} />
-            </div>
-
-            <span
-              className="brand-name"
-              style={{
-                fontSize: "16px",
-                fontWeight: "600",
-                color: "#ffffff",
-                letterSpacing: "-0.3px",
-                opacity: isSidebarCollapsed ? 0 : 1,
-                transition: "opacity 0.2s ease-in-out",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                width: isSidebarCollapsed ? "0" : "auto",
-              }}
-            >
-              iSuite Assistant
-            </span>
-          </div>
-
-          {/* Desktop collapse button */}
+        {/* Header / Brand */}
+        <div className={cn(
+          "h-16 flex items-center justify-between px-4 border-b border-border",
+          isSidebarCollapsed && "justify-center px-0"
+        )}>
           {!isSidebarCollapsed ? (
-            <button
-              onClick={toggleSidebarCollapse}
-              className="sidebar-collapse-btn"
-              style={{
-                padding: "8px",
-                borderRadius: "8px",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: "#9ca3af",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                marginLeft: "8px",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-                e.currentTarget.style.color = "#ffffff";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "#9ca3af";
-              }}
-              aria-label="Collapse sidebar"
-            >
-              <ChevronLeft size={18} />
-            </button>
+            <div className="flex items-center gap-3 overflow-hidden">
+               <div className="w-8 h-8 bg-foreground text-background rounded-md flex items-center justify-center shrink-0">
+                  <Layout size={18} />
+               </div>
+               <span className="font-serif text-lg font-medium tracking-tight text-foreground whitespace-nowrap">
+                  iSuite
+               </span>
+            </div>
           ) : (
+            <div className="w-8 h-8 bg-foreground text-background rounded-md flex items-center justify-center shrink-0">
+               <Layout size={18} />
+            </div>
+          )}
+
+          {/* Collapse Button */}
+           {!isSidebarCollapsed && (
             <button
               onClick={toggleSidebarCollapse}
-              className="sidebar-collapse-btn sidebar-expand-trigger"
-              style={{
-                position: "absolute",
-                top: "50%",
-                right: "16px",
-                transform: "translateY(-50%)",
-                padding: "8px",
-                borderRadius: "8px",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: "#9ca3af",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-                e.currentTarget.style.color = "#ffffff";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "#9ca3af";
-              }}
-              aria-label="Expand sidebar"
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
             >
-              <ChevronRight size={18} />
+              <ChevronLeft size={16} />
             </button>
-          )}
+           )}
         </div>
 
-        <nav className="nav-section" style={{ padding: "16px 12px", flexShrink: 0 }}>
+        {/* Expand Trigger (when collapsed) */}
+        {isSidebarCollapsed && (
           <button
-            className={cn("nav-item", pathname === "/" && "active")}
-            onClick={() => router.push("/")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "12px",
-              borderRadius: "12px",
-              background:
-                pathname === "/"
-                  ? "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)"
-                  : "transparent",
-              color: pathname === "/" ? "#60a5fa" : "#9ca3af",
-              fontSize: "14px",
-              fontWeight: pathname === "/" ? "600" : "500",
-              cursor: "pointer",
-              border: "none",
-              width: "100%",
-              textAlign: "left",
-              position: "relative",
-              marginBottom: "4px",
-              justifyContent: isSidebarCollapsed ? "center" : "flex-start",
-              overflow: "hidden",
-              transition: "all 0.2s",
-            }}
-            title={isSidebarCollapsed ? "New Chat" : undefined}
-            onMouseEnter={(e) => {
-              if (pathname !== "/") {
-                e.currentTarget.style.background = "rgba(59, 130, 246, 0.08)";
-                e.currentTarget.style.color = "#d1d5db";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pathname !== "/") {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "#9ca3af";
-              }
-            }}
+             onClick={toggleSidebarCollapse}
+             className="absolute top-20 -right-3 z-50 w-6 h-6 bg-background border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground shadow-sm"
           >
-            {pathname === "/" && !isSidebarCollapsed && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: "0",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: "3px",
-                  height: "24px",
-                  background: "linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%)",
-                  borderRadius: "0 2px 2px 0",
-                }}
-              />
-            )}
-            <SquarePen
-              size={20}
-              style={{
-                flexShrink: 0,
-                marginLeft: isSidebarCollapsed ? "0" : "8px",
-                strokeWidth: 2,
-              }}
-            />
-            <span
-              style={{
-                opacity: isSidebarCollapsed ? 0 : 1,
-                transition: "opacity 0.2s ease-in-out",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                width: isSidebarCollapsed ? "0" : "auto",
-              }}
-            >
-              New Chat
-            </span>
+            <ChevronRight size={12} />
           </button>
+        )}
 
-          <button
-            className={cn("nav-item", pathname === "/integrations" && "active")}
-            onClick={() => router.push("/integrations")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "12px",
-              borderRadius: "12px",
-              background:
-                pathname === "/integrations"
-                  ? "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)"
-                  : "transparent",
-              color: pathname === "/integrations" ? "#60a5fa" : "#9ca3af",
-              fontSize: "14px",
-              fontWeight: pathname === "/integrations" ? "600" : "500",
-              cursor: "pointer",
-              border: "none",
-              width: "100%",
-              textAlign: "left",
-              position: "relative",
-              marginBottom: "4px",
-              justifyContent: isSidebarCollapsed ? "center" : "flex-start",
-              overflow: "hidden",
-              transition: "all 0.2s",
-            }}
-            title={isSidebarCollapsed ? "Integrations" : undefined}
-            onMouseEnter={(e) => {
-              if (pathname !== "/integrations") {
-                e.currentTarget.style.background = "rgba(59, 130, 246, 0.08)";
-                e.currentTarget.style.color = "#d1d5db";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pathname !== "/integrations") {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "#9ca3af";
-              }
-            }}
-          >
-            {pathname === "/integrations" && !isSidebarCollapsed && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: "0",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: "3px",
-                  height: "24px",
-                  background: "linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%)",
-                  borderRadius: "0 2px 2px 0",
-                }}
-              />
-            )}
-            <Layers size={20} style={{ flexShrink: 0, strokeWidth: 2 }} />
-            <span
-              style={{
-                opacity: isSidebarCollapsed ? 0 : 1,
-                transition: "opacity 0.2s ease-in-out",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                width: isSidebarCollapsed ? "0" : "auto",
-              }}
-            >
-              Integrations
-            </span>
-          </button>
-
-          <button
-            className={cn("nav-item", pathname === "/settings" && "active")}
-            onClick={() => router.push("/settings")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "12px",
-              borderRadius: "12px",
-              background:
-                pathname === "/settings"
-                  ? "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)"
-                  : "transparent",
-              color: pathname === "/settings" ? "#60a5fa" : "#9ca3af",
-              fontSize: "14px",
-              fontWeight: pathname === "/settings" ? "600" : "500",
-              cursor: "pointer",
-              border: "none",
-              width: "100%",
-              textAlign: "left",
-              position: "relative",
-              justifyContent: isSidebarCollapsed ? "center" : "flex-start",
-              overflow: "hidden",
-              transition: "all 0.2s",
-            }}
-            title={isSidebarCollapsed ? "Settings" : undefined}
-            onMouseEnter={(e) => {
-              if (pathname !== "/settings") {
-                e.currentTarget.style.background = "rgba(59, 130, 246, 0.08)";
-                e.currentTarget.style.color = "#d1d5db";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pathname !== "/settings") {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "#9ca3af";
-              }
-            }}
-          >
-            {pathname === "/settings" && !isSidebarCollapsed && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: "0",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: "3px",
-                  height: "24px",
-                  background: "linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%)",
-                  borderRadius: "0 2px 2px 0",
-                }}
-              />
-            )}
-            <SlidersHorizontal size={20} style={{ flexShrink: 0, strokeWidth: 2 }} />
-            <span
-              style={{
-                opacity: isSidebarCollapsed ? 0 : 1,
-                transition: "opacity 0.2s ease-in-out",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                width: isSidebarCollapsed ? "0" : "auto",
-              }}
-            >
-              Settings
-            </span>
-          </button>
+        {/* Navigation */}
+        <nav className="flex-none p-3 space-y-1">
+           <NavItem 
+             icon={<SquarePen size={18} />} 
+             label="New Chat" 
+             active={pathname === "/"} 
+             collapsed={isSidebarCollapsed}
+             onClick={() => router.push("/")}
+           />
+           <NavItem 
+             icon={<Layers size={18} />} 
+             label="Integrations" 
+             active={pathname === "/integrations"} 
+             collapsed={isSidebarCollapsed}
+             onClick={() => router.push("/integrations")}
+           />
+           <NavItem 
+             icon={<SlidersHorizontal size={18} />} 
+             label="Settings" 
+             active={pathname === "/settings"} 
+             collapsed={isSidebarCollapsed}
+             onClick={() => router.push("/settings")}
+           />
         </nav>
 
-        {/* Recent Chats Section - Only visible when NOT collapsed */}
+        {/* Recent Chats */}
         {!isSidebarCollapsed && (
-          <>
-            <div
-              className="section-label"
-              style={{
-                padding: "20px 16px 10px",
-                fontSize: "11px",
-                fontWeight: "600",
-                color: "#6b7280",
-                textTransform: "uppercase",
-                letterSpacing: "0.8px",
-              }}
-            >
-              RECENT CHATS
+          <div className="flex-1 overflow-y-auto px-3 min-h-0">
+            <div className="px-3 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-widest opacity-70">
+              Recent Chats
             </div>
-
-            <div
-              className="recent-chats-list"
-              style={{
-                flex: 1,
-                overflowY: "auto",
-                padding: "0 12px 12px",
-              }}
-            >
+            <div className="space-y-0.5">
               {conversations.map((conv) => (
                 <div
                   key={conv._id}
-                  className="recent-chat-item"
-                  onClick={() => {
-                    router.push(`/?chatId=${conv._id}`);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    padding: "10px 12px",
-                    borderRadius: "10px",
-                    cursor: "pointer",
-                    fontSize: "13px",
-                    color: "#9ca3af",
-                    background: "transparent",
-                    marginBottom: "2px",
-                    transition: "all 0.2s",
-                    fontWeight: "400",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
-                    e.currentTarget.style.color = "#d1d5db";
-                    e.currentTarget.style.transform = "translateX(2px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "#9ca3af";
-                    e.currentTarget.style.transform = "translateX(0)";
-                  }}
+                  onClick={() => router.push(`/?chatId=${conv._id}`)}
+                  className="group flex items-center gap-3 px-3 py-2.5 text-sm rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/50 cursor-pointer transition-all duration-200"
                 >
-                  <MessageSquare
-                    size={16}
-                    style={{ flexShrink: 0, opacity: 0.6 }}
-                  />
-                  <span
-                    style={{
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {conv.title}
-                  </span>
+                  <MessageSquare size={14} className="opacity-50 group-hover:opacity-100" />
+                  <span className="truncate flex-1">{conv.title}</span>
                   <button
-                    className="delete-chat-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm("Delete this chat?")) {
-                        deleteConversation({ conversationId: conv._id });
-                      }
-                    }}
-                    title="Delete chat"
-                    style={{
-                      opacity: 0,
-                      padding: "5px",
-                      border: "none",
-                      background: "transparent",
-                      color: "#6b7280",
-                      cursor: "pointer",
-                      borderRadius: "5px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all 0.2s",
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)";
-                      e.currentTarget.style.color = "#ef4444";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = "#6b7280";
-                    }}
+                    onClick={(e) => handleDeleteClick(e, conv._id, conv.title)}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-all"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               ))}
               {conversations.length === 0 && (
-                <div
-                  className="recent-chat-item"
-                  style={{
-                    opacity: 0.5,
-                    fontStyle: "italic",
-                    padding: "10px 12px",
-                    color: "#6b7280",
-                    fontSize: "13px",
-                  }}
-                >
-                  No recent chats
-                </div>
+                 <div className="px-3 py-4 text-sm text-muted-foreground italic text-center">
+                    No recent chats
+                 </div>
               )}
             </div>
-          </>
+          </div>
         )}
 
-        <div
-          className="user-profile-section"
-          style={{
-            marginTop: "auto",
-            padding: "12px",
-            borderTop: "1px solid #2a2a2a",
-            background: "rgba(10, 10, 10, 0.5)",
-          }}
-        >
-          <LicenseAuthenticated>
+        {/* Footer / License */}
+        <div className="mt-auto">
+          {!licenseKey ? (
+            <LicenseKeyInput />
+          ) : (
             <UserLicenseCard isCollapsed={isSidebarCollapsed} />
-          </LicenseAuthenticated>
-          <LicenseUnauthenticated>
-            {!isSidebarCollapsed && <LicenseKeyInput />}
-          </LicenseUnauthenticated>
-          <LicenseLoading>
-            <div className="user-card animate-pulse">
-              <div className="user-avatar-sm bg-gray-200"></div>
-              {!isSidebarCollapsed && (
-                <div className="user-info-sm h-4 w-24 bg-gray-200 rounded"></div>
-              )}
-            </div>
-          </LicenseLoading>
+          )}
         </div>
       </aside>
     </>
+  );
+}
+
+// Helper NavItem Component
+function NavItem({ 
+  icon, 
+  label, 
+  active, 
+  collapsed, 
+  onClick 
+}: { 
+  icon: React.ReactNode; 
+  label: string; 
+  active: boolean; 
+  collapsed: boolean; 
+  onClick: () => void; 
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 group relative",
+        active 
+          ? "bg-secondary text-foreground font-medium shadow-sm" 
+          : "text-muted-foreground hover:text-foreground hover:bg-secondary/50",
+        collapsed && "justify-center px-2"
+      )}
+      title={collapsed ? label : undefined}
+    >
+      <span className={cn("transition-colors", active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>
+        {icon}
+      </span>
+      {!collapsed && (
+        <span className="text-sm">{label}</span>
+      )}
+      {active && collapsed && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-foreground rounded-r-full" />
+      )}
+    </button>
   );
 }
