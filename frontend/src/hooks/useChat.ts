@@ -40,10 +40,11 @@ export function useChat(conversationId: Id<"conversations"> | null) {
   const [activeConversationId, setActiveConversationId] =
     useState<Id<"conversations"> | null>(conversationId);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isGeneratingTitleRef = useRef(false);
 
   // Sync with Convex messages when conversationId changes
   useEffect(() => {
-    if (isLoading) return; // Don't sync while streaming (prevents double loader glitch)
+    if (isLoading || isGeneratingTitleRef.current) return; // Don't sync while streaming or generating title
     
     if (convexMessages) {
       setMessages(
@@ -62,6 +63,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
   // Generate AI title in background (fire and forget)
   const generateAITitle = useCallback(
     async (message: string, conversationId: Id<"conversations">) => {
+      isGeneratingTitleRef.current = true;
       try {
         const response = await fetch(`${API_URL}/api/generate-title`, {
           method: "POST",
@@ -77,6 +79,11 @@ export function useChat(conversationId: Id<"conversations"> | null) {
         }
       } catch {
         // Silently fail - title will remain "New Chat"
+      } finally {
+        // Small delay to ensure title update completes before allowing sync
+        setTimeout(() => {
+          isGeneratingTitleRef.current = false;
+        }, 100);
       }
     },
     [updateTitle],
