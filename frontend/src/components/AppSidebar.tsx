@@ -4,7 +4,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
 import {
   Layout,
   SquarePen,
@@ -752,7 +751,7 @@ export default function AppSidebar() {
                   key={conv._id}
                   className="recent-chat-item"
                   onClick={() => {
-                    router.push("/");
+                    router.push(`/?chatId=${conv._id}`);
                   }}
                   style={{
                     display: "flex",

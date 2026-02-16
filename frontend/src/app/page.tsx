@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { useQuery } from "convex/react";
 import {
@@ -21,8 +21,12 @@ type Attachment = {
 
 export default function Home() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { licenseKey } = useLicenseAuth();
-  const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null);
+  
+  const chatIdParam = searchParams.get("chatId");
+  const selectedConversationId = chatIdParam ? (chatIdParam as Id<"conversations">) : null;
+
   const { messages, sendMessage, isLoading, stopQuery } = useChat(selectedConversationId);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -43,7 +47,7 @@ export default function Home() {
     const newChatId = await sendMessage(input, "claude", preferredModel, attachments);
     
     if (newChatId && !selectedConversationId) {
-      setSelectedConversationId(newChatId);
+      router.push(`/?chatId=${newChatId}`);
     }
     
     setInput("");
@@ -51,7 +55,7 @@ export default function Home() {
   };
 
   const startNewChat = () => {
-    setSelectedConversationId(null);
+    router.push("/");
   };
 
   // Handle file attachment - read as base64 for images
