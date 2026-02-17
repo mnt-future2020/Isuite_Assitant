@@ -16,6 +16,7 @@ import {
   Palette,
   Menu,
   Layers,
+  X,
 } from "lucide-react";
 
 // Helper function to add target="_blank" to all links
@@ -102,6 +103,7 @@ export default function RuixenMoonChat({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [isAttachOpen, setIsAttachOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -125,6 +127,15 @@ export default function RuixenMoonChat({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isAttachOpen]);
+
+  // Handle Escape key to close image preview
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedImage(null);
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, []);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -166,65 +177,45 @@ export default function RuixenMoonChat({
         {/* Messages Container */}
         <div className="flex-1 overflow-y-auto px-4 py-8">
           <div className="max-w-3xl mx-auto space-y-8">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn(
-                  "flex flex-col gap-2",
-                  msg.role === "user" ? "items-end" : "items-start"
-                )}
-              >
-                <div className={cn(
-                   "text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1",
-                   msg.role === "user" ? "text-right" : "text-left"
-                )}>
-                  {msg.role === "user" ? "You" : "Assistant"}
-                </div>
-                
+            {messages.map((msg) => {
+              const hasContent = msg.content && msg.content.trim().length > 0;
+              const isAssistantLoading = msg.role === "assistant" && !msg.content;
+              const hasImages = msg.images && msg.images.length > 0;
+
+              return (
                 <div
+                  key={msg.id}
                   className={cn(
-                    "max-w-[85%] rounded-2xl text-sm leading-relaxed shadow-sm transition-all duration-200 break-words",
-                    (msg.role === "assistant" && !msg.content) ? "px-3 py-2" : "px-4 py-2.5",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground"
+                    "flex flex-col gap-1",
+                    msg.role === "user" ? "items-end" : "items-start"
                   )}
                 >
-                  {/* If assistant message is empty, show loading dots inside the bubble */}
-                  {msg.role === "assistant" && !msg.content ? (
-                    <div className="flex items-center gap-2.5 px-1 py-0.5">
-                      <div className="w-3.5 h-3.5 border-2 border-foreground/30 border-t-foreground/80 rounded-full animate-spin" />
-                      <span className="text-sm font-medium text-muted-foreground animate-pulse">Thinking...</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {/* Show images if present (for user messages with attachments) */}
-                      {msg.images && msg.images.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {msg.images.map((imgData, idx) => {
-                            // Handle both base64 data URLs and server URLs
-                            const imgSrc = imgData.startsWith('data:') 
-                              ? imgData 
-                              : imgData.startsWith('http') 
-                                ? imgData 
-                                : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${imgData}`;
-                            
-                            return (
-                              <div key={idx} className="relative rounded-lg overflow-hidden border border-primary-foreground/20">
-                                <img
-                                  src={imgSrc}
-                                  alt="Attachment"
-                                  className="max-w-[200px] max-h-[200px] object-cover rounded-lg"
-                                  loading="lazy"
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
+                  <div className={cn(
+                     "text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1",
+                     msg.role === "user" ? "text-right" : "text-left"
+                  )}>
+                    {msg.role === "user" ? "You" : "Assistant"}
+                  </div>
+                  
+                  {/* Text Bubble - Render if content exists or if it's loading */}
+                  {(hasContent || isAssistantLoading) && (
+                    <div
+                      className={cn(
+                        "rounded-2xl text-sm leading-relaxed shadow-sm transition-all duration-200 break-words",
+                        // Dynamic width based on content length could include max-w here
+                        "max-w-[85%]", 
+                        isAssistantLoading ? "px-3 py-2" : "px-4 py-2.5",
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-secondary-foreground"
                       )}
-                      
-                      {/* Message content */}
-                      {msg.content && (
+                    >
+                      {isAssistantLoading ? (
+                        <div className="flex items-center gap-2.5 px-1 py-0.5">
+                          <div className="w-3.5 h-3.5 border-2 border-foreground/30 border-t-foreground/80 rounded-full animate-spin" />
+                          <span className="text-sm font-medium text-muted-foreground animate-pulse">Thinking...</span>
+                        </div>
+                      ) : (
                         <div 
                           className={cn("w-full overflow-hidden", msg.role === "assistant" && "markdown-content")}
                           dangerouslySetInnerHTML={{
@@ -236,9 +227,40 @@ export default function RuixenMoonChat({
                       )}
                     </div>
                   )}
+
+                  {/* Images - Outside Bubble, displayed as small thumbnails */}
+                  {hasImages && (
+                    <div className={cn(
+                      "flex flex-wrap gap-2 mt-1", 
+                      msg.role === "user" ? "justify-end" : "justify-start"
+                    )}>
+                      {msg.images!.map((imgData, idx) => {
+                        const imgSrc = imgData.startsWith('data:') 
+                          ? imgData 
+                          : imgData.startsWith('http') 
+                            ? imgData 
+                            : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${imgData}`;
+                        
+                        return (
+                          <div 
+                             key={idx} 
+                             onClick={() => setSelectedImage(imgSrc)}
+                             className="relative rounded-xl overflow-hidden border border-border/50 cursor-pointer hover:opacity-80 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                          >
+                            <img
+                              src={imgSrc}
+                              alt="Attachment"
+                              className="w-11 h-11 object-cover bg-muted/20" 
+                              loading="lazy"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             
             {/* 
               Only show separate loading indicator if we are loading BUT 
@@ -410,6 +432,29 @@ export default function RuixenMoonChat({
             </div>
           </div>
         </div>
+        
+        {/* Image Preview Modal */}
+        {selectedImage && (
+          <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={() => setSelectedImage(null)}
+          >
+            <div className="relative w-full h-full flex items-center justify-center p-4">
+              <button 
+                onClick={() => setSelectedImage(null)}
+                className="absolute top-4 right-4 text-white/70 hover:text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-all active:scale-95"
+              >
+                <X size={28} />
+              </button>
+              <img 
+                src={selectedImage} 
+                alt="Full preview" 
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()} 
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
