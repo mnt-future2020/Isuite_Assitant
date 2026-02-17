@@ -8,6 +8,7 @@ export type Message = {
   role: "user" | "assistant";
   content: string;
   id: string;
+  images?: string[];
   toolCalls?: Array<{
     name: string;
     input: Record<string, unknown>;
@@ -52,6 +53,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
           role: m.role,
           content: m.content,
           id: m._id,
+          images: m.images,
         })),
       );
     } else if (!conversationId) {
@@ -100,20 +102,57 @@ export function useChat(conversationId: Id<"conversations"> | null) {
 
       setIsLoading(true);
       let chatId = activeConversationId;
+      let uploadedImages = [];
 
-      // 1. Create conversation if it doesn't exist
+      // 1. Upload images first if any
+      if (attachments.length > 0) {
+        try {
+          // Prepare payload needs only name and data
+          const uploadPayload = attachments.map(att => ({
+            name: att.name,
+            type: att.type,
+            data: att.data
+          }));
+
+          const uploadRes = await fetch(`${API_URL}/api/upload`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ images: uploadPayload }),
+          });
+
+          if (uploadRes.ok) {
+            const data = await uploadRes.json();
+            if (data.success) {
+              uploadedImages = data.uploadedImages; // Contains path, url, originalName
+            }
+          } else {
+             console.error("Failed to upload images");
+          }
+        } catch (err) {
+          console.error("Image upload error:", err);
+        }
+      }
+
+      // 2. Create conversation if it doesn't exist
       const isNewConversation = !chatId;
       if (!chatId && licenseKey) {
         chatId = await createConversation({ title: "New Chat", licenseKey });
         setActiveConversationId(chatId);
       }
 
-      // 2. Add user message to UI immediately for feedback
+      // 3. Add user message to UI immediately for feedback
       const userMsgId = `temp_user_${Date.now()}`;
-      const userMessage: Message = { role: "user", content, id: userMsgId };
+      // Show images in the UI using base64 data
+      const imageDataUrls = attachments.map(att => `data:${att.type};base64,${att.data}`);
+      const userMessage: Message = { 
+        role: "user", 
+        content, 
+        id: userMsgId,
+        images: imageDataUrls.length > 0 ? imageDataUrls : undefined
+      };
       setMessages((prev) => [...prev, userMessage]);
 
-      // 3. Prepare assistant placeholder
+      // 4. Prepare assistant placeholder
       const assistantMsgId = `temp_assistant_${Date.now()}`;
       const assistantMessage: Message = {
         role: "assistant",
@@ -129,9 +168,9 @@ export function useChat(conversationId: Id<"conversations"> | null) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: content,
-            images: attachments, // Image attachments as base64
+            images: uploadedImages, // Send uploaded image objects (with paths) instead of base64
             chatId,
-            userId: licenseKey, // License key as user identifier
+            userId: licenseKey,
             provider,
             model,
           }),
@@ -170,13 +209,18 @@ export function useChat(conversationId: Id<"conversations"> | null) {
           }
         }
 
-        // 4. Persistence: Save both messages to Convex at the end
+        // 5. Persistence: Save to Convex with image metadata
         if (chatId) {
+          // Store just the URLs or paths in Convex
+          const imageUrls = uploadedImages.map((img: { url: string }) => img.url);
+
           await sendMessageMutation({
             conversationId: chatId,
             role: "user",
             content,
+            images: imageUrls.length > 0 ? imageUrls : undefined,
           });
+          
           await sendMessageMutation({
             conversationId: chatId,
             role: "assistant",
@@ -184,7 +228,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
           });
         }
 
-        // 5. Generate AI title for new conversations (in background)
+        // 6. Generate AI title for new conversations
         if (isNewConversation && chatId) {
           generateAITitle(content, chatId);
         }

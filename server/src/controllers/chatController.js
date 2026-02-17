@@ -34,7 +34,7 @@ function saveImageToTemp(imageData, imageName, imageType) {
 async function chat(req, res) {
     const {
         message,
-        images = [], // Image attachments as base64
+        images = [], // Array of objects: { path, url, originalName }
         chatId,
         userId = 'default-user',
         provider: providerName = 'claude',
@@ -47,28 +47,17 @@ async function chat(req, res) {
         return res.status(400).json({ error: 'Message or images required' });
     }
 
-    // Save images to temp files and build enhanced prompt
+    // Build enhanced prompt with image references
     let enhancedPrompt = message || '';
-    const savedImagePaths = [];
     
     if (images.length > 0) {
-        for (const img of images) {
-            try {
-                const imagePath = saveImageToTemp(img.data, img.name, img.type);
-                savedImagePaths.push(imagePath);
-            } catch (err) {
-                console.error('[CHAT] Failed to save image:', err);
-            }
-        }
-        
-        if (savedImagePaths.length > 0) {
-            // Prepend image context to the prompt
-            const imageContext = savedImagePaths.map(p => 
-                `[User attached an image file at: ${p}. Please use the Read tool to view and analyze this image.]`
-            ).join('\n');
-            enhancedPrompt = imageContext + '\n\n' + enhancedPrompt;
-            console.log(`[CHAT] Enhanced prompt with ${savedImagePaths.length} image path(s)`);
-        }
+        // Prepend image context to the prompt
+        // We assume 'path' is the absolute path on the server file system
+        const imageContext = images.map(img => 
+            `[User attached an image file at: ${img.path}. Please use the Read tool to view and analyze this image.]`
+        ).join('\n');
+        enhancedPrompt = imageContext + '\n\n' + enhancedPrompt;
+        console.log(`[CHAT] Enhanced prompt with ${images.length} image path(s)`);
     }
 
     // SSE Setup

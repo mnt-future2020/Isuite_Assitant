@@ -170,7 +170,7 @@ export function useComposio(userId?: string) {
     }, 5000);
 
     return () => clearInterval(intervalId);
-  }, [fetchApps, fetchConnections]);
+  }, [userId]); // Only depend on userId, not the functions
 
   return {
     toolkits,

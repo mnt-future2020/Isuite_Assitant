@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import apiRoutes from './routes/api.js';
+import path from 'path';
+import os from 'os';
+import fs from 'fs';
 
 const app = express();
 
@@ -32,6 +35,13 @@ function createApp() {
 
     // Mount API routes
     app.use('/api', apiRoutes);
+
+    // Serve static files from persistent storage
+    const storagePath = path.join(os.homedir(), 'Documents', 'ISuite_Images');
+    if (!fs.existsSync(storagePath)) {
+        fs.mkdirSync(storagePath, { recursive: true });
+    }
+    app.use('/images', express.static(storagePath));
 
     // Global Error Handler
     app.use((err, req, res, next) => {

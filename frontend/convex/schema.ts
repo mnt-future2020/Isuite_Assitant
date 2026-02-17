@@ -32,6 +32,7 @@ export default defineSchema({
     conversationId: v.id("conversations"),
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
+    images: v.optional(v.array(v.string())), // Array of image URLs/paths
     embedding: v.optional(v.array(v.float64())), // For Vector Search
     createdAt: v.number(),
   })

@@ -9,17 +9,13 @@ import { marked } from "marked";
 import {
   ImageIcon,
   FileUp,
-  MonitorIcon,
-  CircleUserRound,
   ArrowUpIcon,
   Paperclip,
   PlusIcon,
   Code2,
   Palette,
-  Layers,
-  Rocket,
-  Grid2X2,
   Menu,
+  Layers,
 } from "lucide-react";
 
 // Helper function to add target="_blank" to all links
@@ -67,6 +63,7 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  images?: string[];
 }
 
 interface RuixenMoonChatProps {
@@ -200,14 +197,44 @@ export default function RuixenMoonChat({
                       <span className="text-sm font-medium text-muted-foreground animate-pulse">Thinking...</span>
                     </div>
                   ) : (
-                    <div 
-                      className={cn("w-full overflow-hidden", msg.role === "assistant" && "markdown-content")}
-                      dangerouslySetInnerHTML={{
-                        __html: msg.role === "assistant"
-                          ? parseMarkdownWithExternalLinks(msg.content)
-                          : msg.content
-                      }} 
-                    />
+                    <div className="flex flex-col gap-2">
+                      {/* Show images if present (for user messages with attachments) */}
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {msg.images.map((imgData, idx) => {
+                            // Handle both base64 data URLs and server URLs
+                            const imgSrc = imgData.startsWith('data:') 
+                              ? imgData 
+                              : imgData.startsWith('http') 
+                                ? imgData 
+                                : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${imgData}`;
+                            
+                            return (
+                              <div key={idx} className="relative rounded-lg overflow-hidden border border-primary-foreground/20">
+                                <img
+                                  src={imgSrc}
+                                  alt="Attachment"
+                                  className="max-w-[200px] max-h-[200px] object-cover rounded-lg"
+                                  loading="lazy"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      
+                      {/* Message content */}
+                      {msg.content && (
+                        <div 
+                          className={cn("w-full overflow-hidden", msg.role === "assistant" && "markdown-content")}
+                          dangerouslySetInnerHTML={{
+                            __html: msg.role === "assistant"
+                              ? parseMarkdownWithExternalLinks(msg.content)
+                              : msg.content
+                          }} 
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -347,7 +374,7 @@ export default function RuixenMoonChat({
                       }}
                       className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-md transition-colors text-left"
                     >
-                      <Grid2X2 className="w-4 h-4 text-muted-foreground" />
+                      <Layers className="w-4 h-4 text-muted-foreground" />
                       <span>Explore Apps</span>
                     </button>
                   </div>
@@ -517,7 +544,7 @@ export default function RuixenMoonChat({
                     }}
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-md transition-colors text-left"
                   >
-                    <Grid2X2 className="w-4 h-4 text-muted-foreground" />
+                    <Layers className="w-4 h-4 text-muted-foreground" />
                     <span>Explore Apps</span>
                   </button>
                 </div>

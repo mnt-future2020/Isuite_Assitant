@@ -15,8 +15,8 @@ const nextConfig: NextConfig = {
               "worker-src 'self' blob:",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: https:",
-              "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.isuiteassistant.com ws://localhost:* http://localhost:* http://127.0.0.1:*"
+              "img-src 'self' data: https: http://localhost:* http://127.0.0.1:*",
+              "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.isuiteassistant.com ws://localhost:* wss://localhost:* http://localhost:* http://127.0.0.1:* ws://127.0.0.1:* wss://127.0.0.1:*"
             ].join("; ")
           },
         ],

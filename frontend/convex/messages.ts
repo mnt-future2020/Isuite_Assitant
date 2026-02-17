@@ -18,12 +18,14 @@ export const send = mutation({
     conversationId: v.id("conversations"),
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
+    images: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       role: args.role,
       content: args.content,
+      images: args.images,
       createdAt: Date.now(),
     });
 
