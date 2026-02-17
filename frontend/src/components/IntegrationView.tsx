@@ -10,7 +10,7 @@ export default function IntegrationView() {
   const { licenseKey } = useLicenseAuth();
   const { toolkits, connections, isLoading, initiateConnection, disconnectApp, refresh } = useComposio(licenseKey || undefined);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState<'ALL' | 'CONNECTED'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'CONNECTED'>('CONNECTED');
   const [loadMoreCount, setLoadMoreCount] = useState(0);
 
   const filteredToolkits = useMemo(() => {
