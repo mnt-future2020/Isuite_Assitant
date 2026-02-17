@@ -27,7 +27,7 @@ export default function Home() {
   const chatIdParam = searchParams.get("chatId");
   const selectedConversationId = chatIdParam ? (chatIdParam as Id<"conversations">) : null;
 
-  const { messages, sendMessage, isLoading, stopQuery } = useChat(selectedConversationId);
+  const { messages, sendMessage, isLoading, isHistoryLoading, stopQuery } = useChat(selectedConversationId);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
@@ -90,6 +90,7 @@ export default function Home() {
           setInput={setInput}
           handleSend={handleSend}
           isLoading={isLoading}
+          isHistoryLoading={isHistoryLoading}
           handleFileAttach={handleFileAttach}
           attachments={attachments}
           removeAttachment={(index) => setAttachments(prev => prev.filter((_, i) => i !== index))}

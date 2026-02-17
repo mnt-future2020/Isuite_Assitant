@@ -250,10 +250,13 @@ export function useChat(conversationId: Id<"conversations"> | null) {
     setIsLoading(false);
   }, []);
 
+  const isHistoryLoading = convexMessages === undefined && !!conversationId;
+
   return {
     messages,
     sendMessage,
     isLoading,
+    isHistoryLoading,
     stopQuery,
     activeConversationId,
   };

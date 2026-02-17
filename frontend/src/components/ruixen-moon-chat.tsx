@@ -80,6 +80,7 @@ interface RuixenMoonChatProps {
   onNewChat?: () => void;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
+  isHistoryLoading?: boolean;
 }
 
 export default function RuixenMoonChat({
@@ -95,6 +96,7 @@ export default function RuixenMoonChat({
   onNewChat,
   isSidebarOpen,
   onToggleSidebar,
+  isHistoryLoading = false,
 }: RuixenMoonChatProps) {
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: 48,
@@ -111,7 +113,7 @@ export default function RuixenMoonChat({
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isHistoryLoading]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -145,7 +147,7 @@ export default function RuixenMoonChat({
   };
 
   // Render messages view when there are messages
-  if (messages.length > 0) {
+  if (messages.length > 0 || isHistoryLoading) {
     return (
       <div className="relative w-full h-full flex flex-col bg-background font-sans">
         {/* Header */}
@@ -177,6 +179,8 @@ export default function RuixenMoonChat({
         {/* Messages Container */}
         <div className="flex-1 overflow-y-auto px-4 py-8">
           <div className="max-w-3xl mx-auto space-y-8">
+            {isHistoryLoading ? null : (
+              <>
             {messages.map((msg) => {
               const hasContent = msg.content && msg.content.trim().length > 0;
               const isAssistantLoading = msg.role === "assistant" && !msg.content;
@@ -279,6 +283,8 @@ export default function RuixenMoonChat({
                   </div>
                 </div>
               </div>
+            )}
+            </>
             )}
             <div ref={messagesEndRef} />
           </div>
