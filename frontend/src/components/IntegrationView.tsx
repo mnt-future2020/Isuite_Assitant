@@ -4,19 +4,14 @@ import { useComposio } from "@/hooks/useComposio";
 import { useLicenseAuth } from "@/app/ConvexClientProvider";
 import { ExternalLink, Check, Plus, RefreshCw, Unlink, Search } from "lucide-react";
 import Image from "next/image";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 
 export default function IntegrationView() {
   const { licenseKey } = useLicenseAuth();
   const { toolkits, connections, isLoading, initiateConnection, disconnectApp, refresh } = useComposio(licenseKey || undefined);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState<'ALL' | 'CONNECTED'>('CONNECTED');
-  const [visibleCount, setVisibleCount] = useState(24);
-
-  // Reset visible count when filter or search changes
-  useEffect(() => {
-    setVisibleCount(24);
-  }, [filter, searchQuery]);
+  const [filter, setFilter] = useState<'ALL' | 'CONNECTED'>('ALL');
+  const [loadMoreCount, setLoadMoreCount] = useState(0);
 
   const filteredToolkits = useMemo(() => {
     const isConnected = (appName: string) => {
@@ -38,12 +33,23 @@ export default function IntegrationView() {
     });
   }, [toolkits, connections, searchQuery, filter]);
 
+  const visibleCount = 24 + (loadMoreCount * 24);
   const visibleToolkits = useMemo(() => {
     return filteredToolkits.slice(0, visibleCount);
   }, [filteredToolkits, visibleCount]);
 
   const handleLoadMore = () => {
-    setVisibleCount(prev => prev + 24);
+    setLoadMoreCount(prev => prev + 1);
+  };
+
+  const handleFilterChange = (newFilter: 'ALL' | 'CONNECTED') => {
+    setFilter(newFilter);
+    setLoadMoreCount(0);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setLoadMoreCount(0);
   };
 
   const isConnected = (appName: string) => {
@@ -85,7 +91,7 @@ export default function IntegrationView() {
               type="text"
               placeholder="Search apps..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="message-input"
               style={{
                 background: 'var(--bg-white)',
@@ -102,7 +108,7 @@ export default function IntegrationView() {
           
           <div style={{ background: 'var(--bg-white)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-light)', display: 'flex' }}>
             <button
-              onClick={() => setFilter('CONNECTED')}
+              onClick={() => handleFilterChange('CONNECTED')}
               style={{
                 padding: '6px 16px',
                 borderRadius: '6px',
@@ -118,7 +124,7 @@ export default function IntegrationView() {
               Connected
             </button>
             <button
-              onClick={() => setFilter('ALL')}
+              onClick={() => handleFilterChange('ALL')}
               style={{
                 padding: '6px 16px',
                 borderRadius: '6px',
@@ -139,9 +145,68 @@ export default function IntegrationView() {
       </div>
 
       {isLoading && toolkits.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
-          <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '16px' }} />
-          <p style={{ color: 'var(--text-secondary)' }}>Loading integrations...</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div 
+              key={index}
+              style={{
+                background: 'var(--bg-white)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '12px',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: 'var(--shadow-sm)',
+                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  borderRadius: '10px', 
+                  background: 'var(--bg-main)',
+                }} />
+              </div>
+              
+              <div style={{ 
+                height: '20px', 
+                background: 'var(--bg-main)', 
+                borderRadius: '4px', 
+                marginBottom: '8px',
+                width: '60%'
+              }} />
+              <div style={{ 
+                height: '16px', 
+                background: 'var(--bg-main)', 
+                borderRadius: '4px', 
+                marginBottom: '4px',
+                width: '100%'
+              }} />
+              <div style={{ 
+                height: '16px', 
+                background: 'var(--bg-main)', 
+                borderRadius: '4px', 
+                marginBottom: '20px',
+                width: '80%'
+              }} />
+              
+              <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
+                <div style={{
+                  flex: 1,
+                  height: '36px',
+                  background: 'var(--bg-main)',
+                  borderRadius: '8px'
+                }} />
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  background: 'var(--bg-main)',
+                  borderRadius: '8px'
+                }} />
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <>
@@ -313,15 +378,37 @@ export default function IntegrationView() {
         </>
       )}
 
-      {!isLoading && filteredToolkits.length === 0 && (
+      {!isLoading && filteredToolkits.length === 0 && toolkits.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', textAlign: 'center' }}>
           <div style={{ width: '64px', height: '64px', background: 'var(--bg-white)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: '1px solid var(--border-light)' }}>
             <Search size={24} style={{ color: 'var(--text-tertiary)' }} />
           </div>
           <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>No apps found</h3>
           <p style={{ color: 'var(--text-secondary)', maxWidth: '300px' }}>
-            {searchQuery ? `No results for "${searchQuery}"` : "Try adjusting your filters or search query."}
+            {searchQuery 
+              ? `No results for "${searchQuery}". Try a different search term.` 
+              : filter === 'CONNECTED' 
+                ? "You haven't connected any apps yet. Switch to 'All Apps' to browse available integrations."
+                : "Try adjusting your filters or search query."}
           </p>
+          {filter === 'CONNECTED' && (
+            <button
+              onClick={() => handleFilterChange('ALL')}
+              style={{
+                marginTop: '16px',
+                padding: '8px 16px',
+                background: 'var(--accent-primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              Browse All Apps
+            </button>
+          )}
         </div>
       )}
     </div>

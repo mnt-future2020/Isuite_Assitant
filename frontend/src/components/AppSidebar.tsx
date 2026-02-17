@@ -6,7 +6,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import {
-  Layout,
+
   SquarePen,
   Layers,
   SlidersHorizontal,
@@ -51,7 +51,7 @@ function LicenseKeyInput() {
   };
 
   return (
-    <div className="p-4 space-y-3 border-t border-border">
+    <div className="p-4 space-y-3 border-t border-border transition-all duration-300">
       <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
         Activate License
       </div>
@@ -63,14 +63,14 @@ function LicenseKeyInput() {
         className="w-full bg-transparent border-b border-border py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground transition-colors"
       />
       {error && (
-        <div className="text-destructive text-xs">
+        <div className="text-destructive text-xs animate-in fade-in slide-in-from-top-1 duration-200">
           {error}
         </div>
       )}
       <button
         onClick={handleActivate}
         disabled={isActivating}
-        className="w-full flex items-center justify-center gap-2 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-2 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-all duration-200 disabled:opacity-50"
       >
         <Key size={14} />
         <span>{isActivating ? "Activating..." : "Activate"}</span>
@@ -85,48 +85,48 @@ function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
 
   if (!user) return null;
 
-  if (isCollapsed) {
-    // Collapsed state - stacked vertically
-    return (
-      <div className="flex flex-col items-center gap-3 py-4 border-t border-border">
+  return (
+    <div className={cn(
+      "border-t border-border transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+      isCollapsed ? "p-3" : "p-4"
+    )}>
+      <div className={cn(
+        "flex items-center rounded-lg transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+        isCollapsed 
+          ? "flex-col gap-3 p-2" 
+          : "gap-3 p-3 bg-secondary/30 hover:bg-secondary/50"
+      )}>
+        {/* Avatar */}
         <div
-          className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-semibold"
+          className={cn(
+            "rounded-full bg-foreground text-background flex items-center justify-center text-xs font-semibold shrink-0 transition-all duration-300",
+            isCollapsed ? "w-9 h-9" : "w-8 h-8"
+          )}
           title={user.email}
         >
           {user.email?.charAt(0).toUpperCase() || "U"}
         </div>
 
-        <button
-          onClick={logout}
-          className="text-muted-foreground hover:text-destructive transition-colors"
-          title="Sign out"
-        >
-          <LogOut size={16} />
-        </button>
-      </div>
-    );
-  }
-
-  // Expanded state - horizontal layout
-  return (
-    <div className="p-4 border-t border-border">
-      <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-semibold shrink-0">
-            {user.email?.charAt(0).toUpperCase() || "U"}
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-medium text-foreground truncate">
-              {user.name || user.email}
-            </span>
-            <span className="text-xs text-muted-foreground capitalize truncate">
-              {user.plan} Plan
-            </span>
-          </div>
+        {/* User Info - slides out when collapsed */}
+        <div className={cn(
+          "flex flex-col min-w-0 transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] overflow-hidden",
+          isCollapsed ? "w-0 h-0 opacity-0" : "flex-1 opacity-100"
+        )}>
+          <span className="text-sm font-medium text-foreground truncate">
+            {user.name || user.email}
+          </span>
+          <span className="text-xs text-muted-foreground capitalize truncate">
+            {user.plan} Plan
+          </span>
         </div>
+
+        {/* Logout Button */}
         <button
           onClick={logout}
-          className="text-muted-foreground hover:text-destructive transition-colors p-1"
+          className={cn(
+            "text-muted-foreground hover:text-destructive transition-all duration-200",
+            isCollapsed ? "p-0" : "p-1"
+          )}
           title="Sign out"
         >
           <LogOut size={16} />
@@ -254,16 +254,24 @@ export default function AppSidebar() {
         )}>
           {!isSidebarCollapsed ? (
             <div className="flex items-center gap-3 overflow-hidden">
-               <div className="w-8 h-8 bg-foreground text-background rounded-md flex items-center justify-center shrink-0">
-                  <Layout size={18} />
+               <div className="w-9 h-9 bg-foreground text-background rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-border/10">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="4" width="6" height="16" rx="1.5" fill="currentColor" />
+                    <rect x="14" y="11" width="6" height="9" rx="1.5" fill="currentColor" fillOpacity="0.85" />
+                    <circle cx="17" cy="6" r="2.5" fill="currentColor" />
+                  </svg>
                </div>
-               <span className="font-serif text-lg font-medium tracking-tight text-foreground whitespace-nowrap">
+               <span className="font-serif text-xl font-medium tracking-tight text-foreground whitespace-nowrap">
                   iSuite
                </span>
             </div>
           ) : (
-            <div className="w-8 h-8 bg-foreground text-background rounded-md flex items-center justify-center shrink-0">
-               <Layout size={18} />
+            <div className="w-9 h-9 bg-foreground text-background rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-border/10">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="4" width="6" height="16" rx="1.5" fill="currentColor" />
+                    <rect x="14" y="11" width="6" height="9" rx="1.5" fill="currentColor" fillOpacity="0.85" />
+                    <circle cx="17" cy="6" r="2.5" fill="currentColor" />
+                </svg>
             </div>
           )}
 

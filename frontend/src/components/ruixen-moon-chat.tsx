@@ -387,76 +387,80 @@ export default function RuixenMoonChat({
     );
   }
 
-  // Render empty state (welcome screen)
+  // Render empty state (welcome screen) - centered vertically
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center bg-background font-sans p-4">
       
-      {/* Centered AI Title */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center -mt-20">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 bg-foreground text-background rounded-xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-             <Code2 className="w-6 h-6" />
+      {/* Centered Content */}
+      <div className="flex flex-col items-center justify-center w-full max-w-2xl space-y-8">
+        {/* Brand Logo and Name */}
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-16 h-16 bg-foreground text-background rounded-2xl flex items-center justify-center shadow-lg">
+            <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="4" width="6" height="16" rx="1.5" fill="currentColor" />
+              <rect x="14" y="11" width="6" height="9" rx="1.5" fill="currentColor" fillOpacity="0.85" />
+              <circle cx="17" cy="6" r="2.5" fill="currentColor" />
+            </svg>
           </div>
-          <h1 className="text-4xl md:text-5xl font-serif font-medium text-foreground tracking-tight">
-            How can I help you today?
+          <h1 className="text-5xl font-serif font-medium text-foreground tracking-tight">
+            iSuite
           </h1>
         </div>
-      </div>
 
-      {/* Input Box Section */}
-      <div className="w-full max-w-2xl px-4 animate-in slide-in-from-bottom-5 fade-in duration-500">
-        <div className="relative bg-background border border-input rounded-2xl shadow-lg shadow-black/5 focus-within:shadow-xl focus-within:border-ring transition-all duration-300">
-          {attachments.length > 0 && (
-            <div className="flex gap-3 p-3 flex-wrap border-b border-border">
-              {attachments.map((att, idx) => (
-                <div key={idx} className="relative group">
-                  <img
-                    src={`data:${att.type};base64,${att.data}`}
-                    alt={att.name}
-                    className="w-14 h-14 rounded-md object-cover border border-border"
-                  />
-                  {removeAttachment && (
-                    <button
-                      onClick={() => removeAttachment(idx)}
-                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              adjustHeight();
-            }}
-            onKeyDown={onKeyDown}
-            placeholder="Ask anything..."
-            className={cn(
-              "w-full px-5 py-4 resize-none border-none shadow-none",
-              "bg-transparent text-foreground text-lg",
-              "focus-visible:ring-0 focus-visible:ring-offset-0",
-              "placeholder:text-muted-foreground/60 min-h-[60px]"
+        {/* Input Box */}
+        <div className="w-full animate-in slide-in-from-bottom-5 fade-in duration-500">
+          <div className="relative bg-background border border-input rounded-2xl shadow-lg shadow-black/5 focus-within:shadow-xl focus-within:border-ring transition-all duration-300">
+            {attachments.length > 0 && (
+              <div className="flex gap-3 p-3 flex-wrap border-b border-border">
+                {attachments.map((att, idx) => (
+                  <div key={idx} className="relative group">
+                    <img
+                      src={`data:${att.type};base64,${att.data}`}
+                      alt={att.name}
+                      className="w-14 h-14 rounded-md object-cover border border-border"
+                    />
+                    {removeAttachment && (
+                      <button
+                        onClick={() => removeAttachment(idx)}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
-            style={{ overflow: "hidden" }}
-          />
 
-          <div className="flex items-center justify-between p-3 pl-5">
-             <div className="flex items-center gap-3">
-                 <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-full h-9 w-9"
-                    onClick={() => setIsAttachOpen(!isAttachOpen)}
-                 >
-                    <Paperclip className="w-4 h-4" />
-                 </Button>
-                 <input
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                adjustHeight();
+              }}
+              onKeyDown={onKeyDown}
+              placeholder="Ask anything..."
+              className={cn(
+                "w-full px-5 py-4 resize-none border-none shadow-none",
+                "bg-transparent text-foreground text-lg",
+                "focus-visible:ring-0 focus-visible:ring-offset-0",
+                "placeholder:text-muted-foreground/60 min-h-[60px]"
+              )}
+              style={{ overflow: "hidden" }}
+            />
+
+            <div className="flex items-center justify-between p-3 pl-5">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-full h-9 w-9"
+                  onClick={() => setIsAttachOpen(!isAttachOpen)}
+                >
+                  <Paperclip className="w-4 h-4" />
+                </Button>
+                <input
                   type="file"
                   ref={fileInputRef}
                   className="hidden"
@@ -477,49 +481,49 @@ export default function RuixenMoonChat({
                     e.target.value = "";
                   }}
                 />
-             </div>
+              </div>
              
               {/* Attachment Dropdown Menu */}
-                {isAttachOpen && (
-                  <div
-                    ref={menuRef}
-                    className="absolute bottom-16 left-5 w-48 bg-popover border border-border rounded-lg shadow-xl overflow-hidden p-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+              {isAttachOpen && (
+                <div
+                  ref={menuRef}
+                  className="absolute bottom-16 left-5 w-48 bg-popover border border-border rounded-lg shadow-xl overflow-hidden p-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+                >
+                  <button
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      setIsAttachOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-md transition-colors text-left"
                   >
-                    <button
-                      onClick={() => {
-                        fileInputRef.current?.click();
-                        setIsAttachOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-md transition-colors text-left"
-                    >
-                      <Paperclip className="w-4 h-4 text-muted-foreground" />
-                      <span>Upload files</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        imageInputRef.current?.click();
-                        setIsAttachOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-md transition-colors text-left"
-                    >
-                      <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                      <span>Photos</span>
-                    </button>
-                    <div className="h-px bg-border my-1" />
-                    <button
-                      onClick={() => {
-                        router.push("/integrations");
-                        setIsAttachOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-md transition-colors text-left"
-                    >
-                      <Grid2X2 className="w-4 h-4 text-muted-foreground" />
-                      <span>Explore Apps</span>
-                    </button>
-                  </div>
-                )}
+                    <Paperclip className="w-4 h-4 text-muted-foreground" />
+                    <span>Upload files</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      imageInputRef.current?.click();
+                      setIsAttachOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-md transition-colors text-left"
+                  >
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                    <span>Photos</span>
+                  </button>
+                  <div className="h-px bg-border my-1" />
+                  <button
+                    onClick={() => {
+                      router.push("/integrations");
+                      setIsAttachOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-md transition-colors text-left"
+                  >
+                    <Grid2X2 className="w-4 h-4 text-muted-foreground" />
+                    <span>Explore Apps</span>
+                  </button>
+                </div>
+              )}
 
-             <Button
+              <Button
                 onClick={handleSend}
                 disabled={
                   isLoading || (!input.trim() && attachments.length === 0)
@@ -538,15 +542,16 @@ export default function RuixenMoonChat({
                 )}
                 <span className="sr-only">Send</span>
               </Button>
+            </div>
           </div>
-        </div>
 
-        {/* Quick Actions */}
-        <div className="flex items-center justify-center flex-wrap gap-2 mt-8 opacity-60 hover:opacity-100 transition-opacity">
-          <QuickAction icon={<Code2 className="w-3.5 h-3.5" />} label="Code" />
-          <QuickAction icon={<Palette className="w-3.5 h-3.5" />} label="Design" />
-          <QuickAction icon={<PlusIcon className="w-3.5 h-3.5" />} label="Plan" />
-          <QuickAction icon={<FileUp className="w-3.5 h-3.5" />} label="Analyze" />
+          {/* Quick Actions */}
+          <div className="flex items-center justify-center flex-wrap gap-2 mt-6 opacity-60 hover:opacity-100 transition-opacity">
+            <QuickAction icon={<Code2 className="w-3.5 h-3.5" />} label="Code" />
+            <QuickAction icon={<Palette className="w-3.5 h-3.5" />} label="Design" />
+            <QuickAction icon={<PlusIcon className="w-3.5 h-3.5" />} label="Plan" />
+            <QuickAction icon={<FileUp className="w-3.5 h-3.5" />} label="Analyze" />
+          </div>
         </div>
       </div>
     </div>

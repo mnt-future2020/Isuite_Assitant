@@ -28,6 +28,7 @@ export function useComposio(userId?: string) {
   const [previousConnectionCount, setPreviousConnectionCount] = useState(0);
 
   const fetchApps = useCallback(async () => {
+    setIsLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/apps`);
       if (!response.ok) {
@@ -37,6 +38,8 @@ export function useComposio(userId?: string) {
       setToolkits(data.toolkits || []);
     } catch (error) {
       console.error("Failed to fetch toolkits:", error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
