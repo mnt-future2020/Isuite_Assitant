@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { useQuery } from "convex/react";
@@ -19,7 +19,7 @@ type Attachment = {
   data: string; // base64 encoded
 };
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { licenseKey } = useLicenseAuth();
@@ -102,3 +102,12 @@ export default function Home() {
     </div>
   );
 }
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="flex h-screen bg-background" />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
