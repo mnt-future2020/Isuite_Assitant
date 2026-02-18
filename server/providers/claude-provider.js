@@ -26,6 +26,8 @@ async function* simulateStreaming(text, chunkSize = 4) {
 export class ClaudeProvider extends BaseProvider {
   constructor(config = {}) {
     super(config);
+    // Store API key from config
+    this.apiKey = config.apiKey || process.env.ANTHROPIC_API_KEY;
     // Default allowed tools - matches server.js
     this.defaultAllowedTools = config.allowedTools || [
       'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',

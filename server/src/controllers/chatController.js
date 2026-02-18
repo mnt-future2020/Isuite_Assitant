@@ -5,9 +5,6 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Initialize Anthropic client for quick title generation
-const anthropic = new Anthropic();
-
 // Save base64 image to temp file and return the path
 function saveImageToTemp(imageData, imageName, imageType) {
     const tempDir = path.join(os.tmpdir(), 'isuite-uploads');
@@ -38,13 +35,21 @@ async function chat(req, res) {
         chatId,
         userId = 'default-user',
         provider: providerName = 'claude',
-        model = null
+        model = null,
+        anthropicApiKey = null // User's own API key
     } = req.body;
 
     console.log(`[CHAT] Request from ${userId} (${providerName}): ${message} - ChatId: ${chatId} - Images: ${images.length}`);
 
     if (!message && images.length === 0) {
         return res.status(400).json({ error: 'Message or images required' });
+    }
+
+    // Check if API key is provided for Claude provider
+    if (providerName === 'claude' && !anthropicApiKey) {
+        return res.status(400).json({ 
+            error: 'Anthropic API key required. Please add your API key in Settings.' 
+        });
     }
 
     // Build enhanced prompt with image references
@@ -77,26 +82,42 @@ async function chat(req, res) {
 
     try {
         const session = await getOrCreateSession(userId);
-        const provider = getProviderInstance(providerName);
+        
+        // Temporarily set the API key in environment for this request
+        const originalApiKey = process.env.ANTHROPIC_API_KEY;
+        if (anthropicApiKey) {
+            process.env.ANTHROPIC_API_KEY = anthropicApiKey;
+        }
+        
+        try {
+            const provider = getProviderInstance(providerName, { apiKey: anthropicApiKey });
 
-        const mcpServers = {
-            composio: {
-                type: 'http',
-                url: session.mcp.url,
-                headers: session.mcp.headers
+            const mcpServers = {
+                composio: {
+                    type: 'http',
+                    url: session.mcp.url,
+                    headers: session.mcp.headers
+                }
+            };
+
+            for await (const chunk of provider.query({
+                prompt: enhancedPrompt, // Use enhanced prompt with image paths
+                chatId,
+                userId,
+                mcpServers,
+                model,
+                allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'TodoWrite', 'Skill'],
+                maxTurns: 100
+            })) {
+                res.write(`data: ${JSON.stringify(chunk)}\n\n`);
             }
-        };
-
-        for await (const chunk of provider.query({
-            prompt: enhancedPrompt, // Use enhanced prompt with image paths
-            chatId,
-            userId,
-            mcpServers,
-            model,
-            allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'TodoWrite', 'Skill'],
-            maxTurns: 100
-        })) {
-            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        } finally {
+            // Restore original API key
+            if (originalApiKey !== undefined) {
+                process.env.ANTHROPIC_API_KEY = originalApiKey;
+            } else {
+                delete process.env.ANTHROPIC_API_KEY;
+            }
         }
 
         clearInterval(heartbeatInterval);
@@ -132,13 +153,18 @@ async function abort(req, res) {
  * Generate a concise title for a conversation based on user message
  */
 async function generateTitle(req, res) {
-    const { message } = req.body;
+    const { message, anthropicApiKey } = req.body;
 
     if (!message) {
         return res.status(400).json({ error: 'Message is required' });
     }
 
+    if (!anthropicApiKey) {
+        return res.status(400).json({ error: 'Anthropic API key required' });
+    }
+
     try {
+        const anthropic = new Anthropic({ apiKey: anthropicApiKey });
         const response = await anthropic.messages.create({
             model: 'claude-3-haiku-20240307', // Fast & cheap model for titles
             max_tokens: 20,

@@ -20,8 +20,8 @@ function listAvailableProviders() {
 /**
  * Get a specific provider instance by name
  */
-function getProviderInstance(name) {
-    return getProvider(name);
+function getProviderInstance(name, config = {}) {
+    return getProvider(name, config);
 }
 
 export { 

@@ -48,5 +48,6 @@ export default defineSchema({
     theme: v.string(),
     preferredModel: v.string(),
     notificationsEnabled: v.boolean(),
+    anthropicApiKey: v.optional(v.string()), // User's own Anthropic API key
   }).index("by_userId", ["userId"]),
 });

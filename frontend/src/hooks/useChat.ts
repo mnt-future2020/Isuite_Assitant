@@ -32,6 +32,8 @@ export function useChat(conversationId: Id<"conversations"> | null) {
     api.messages.list,
     conversationId ? { conversationId } : "skip",
   );
+  const convexUser = useQuery(api.users.getMe, licenseKey ? { licenseKey } : "skip");
+  const settings = useQuery(api.users.getSettings, convexUser ? { userId: convexUser._id } : "skip");
   const sendMessageMutation = useMutation(api.messages.send);
   const createConversation = useMutation(api.conversations.create);
   const updateTitle = useMutation(api.conversations.updateTitle);
@@ -64,13 +66,13 @@ export function useChat(conversationId: Id<"conversations"> | null) {
 
   // Generate AI title in background (fire and forget)
   const generateAITitle = useCallback(
-    async (message: string, conversationId: Id<"conversations">) => {
+    async (message: string, conversationId: Id<"conversations">, apiKey?: string) => {
       isGeneratingTitleRef.current = true;
       try {
         const response = await fetch(`${API_URL}/api/generate-title`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, anthropicApiKey: apiKey }),
         });
 
         if (response.ok) {
@@ -152,7 +154,19 @@ export function useChat(conversationId: Id<"conversations"> | null) {
       };
       setMessages((prev) => [...prev, userMessage]);
 
-      // 4. Prepare assistant placeholder
+      // 4. Check if API key is available
+      if (!settings?.anthropicApiKey) {
+        const errorMsg: Message = {
+          role: "assistant",
+          content: "⚠️ Anthropic API key not found. Please add your API key in Settings to use the chat.",
+          id: `error_${Date.now()}`,
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+        setIsLoading(false);
+        return chatId;
+      }
+
+      // 5. Prepare assistant placeholder
       const assistantMsgId = `temp_assistant_${Date.now()}`;
       const assistantMessage: Message = {
         role: "assistant",
@@ -173,11 +187,15 @@ export function useChat(conversationId: Id<"conversations"> | null) {
             userId: licenseKey,
             provider,
             model,
+            anthropicApiKey: settings?.anthropicApiKey, // Send user's API key
           }),
           signal: abortControllerRef.current.signal,
         });
 
-        if (!response.ok) throw new Error("Failed to connect to backend");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || "Failed to connect to backend");
+        }
 
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
@@ -230,10 +248,17 @@ export function useChat(conversationId: Id<"conversations"> | null) {
 
         // 6. Generate AI title for new conversations
         if (isNewConversation && chatId) {
-          generateAITitle(content, chatId);
+          generateAITitle(content, chatId, settings?.anthropicApiKey);
         }
       } catch (error) {
         console.error("Chat error:", error);
+        // Show error message to user
+        const errorMsg: Message = {
+          role: "assistant",
+          content: `❌ Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+          id: `error_${Date.now()}`,
+        };
+        setMessages((prev) => [...prev, errorMsg]);
       } finally {
         setIsLoading(false);
         abortControllerRef.current = null;

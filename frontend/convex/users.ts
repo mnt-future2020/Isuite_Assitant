@@ -61,6 +61,7 @@ export const updateSettings = mutation({
     theme: v.string(),
     preferredModel: v.string(),
     notificationsEnabled: v.boolean(),
+    anthropicApiKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -73,6 +74,7 @@ export const updateSettings = mutation({
         theme: args.theme,
         preferredModel: args.preferredModel,
         notificationsEnabled: args.notificationsEnabled,
+        anthropicApiKey: args.anthropicApiKey,
       });
     } else {
       await ctx.db.insert("settings", {
@@ -80,6 +82,7 @@ export const updateSettings = mutation({
         theme: args.theme,
         preferredModel: args.preferredModel,
         notificationsEnabled: args.notificationsEnabled,
+        anthropicApiKey: args.anthropicApiKey,
       });
     }
   },
