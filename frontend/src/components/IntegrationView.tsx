@@ -2,19 +2,44 @@
 
 import { useComposio } from "@/hooks/useComposio";
 import { useLicenseAuth } from "@/app/ConvexClientProvider";
-import { ExternalLink, Check, Plus, RefreshCw, Unlink, Search } from "lucide-react";
+import { ExternalLink, Check, Plus, RefreshCw, Unlink, Search, ChevronDown, Layers } from "lucide-react";
 import Image from "next/image";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 export default function IntegrationView() {
   const { licenseKey } = useLicenseAuth();
   const { toolkits, connections, isLoading, initiateConnection, disconnectApp, refresh } = useComposio(licenseKey || undefined);
   const [searchQuery, setSearchQuery] = useState("");
+  const [targetCategory, setTargetCategory] = useState<string>("All Categories");
   const [filter, setFilter] = useState<'ALL' | 'CONNECTED'>('CONNECTED');
   const [loadMoreCount, setLoadMoreCount] = useState(0);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Extract unique categories
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set<string>();
+    toolkits.forEach(t => {
+      if (t.categories && t.categories.length > 0) {
+        t.categories.forEach(c => uniqueCategories.add(c));
+      }
+    });
+    return ["All Categories", ...Array.from(uniqueCategories).sort()];
+  }, [toolkits]);
 
   const filteredToolkits = useMemo(() => {
-    const isConnected = (appName: string) => {
+    const isConnectedCheck = (appName: string) => {
       return connections.some(c => 
         c.appName.toLowerCase() === appName.toLowerCase() && 
         (c.status.toUpperCase() === 'ACTIVE' || c.status.toUpperCase() === 'CONNECTED')
@@ -26,12 +51,14 @@ export default function IntegrationView() {
         toolkit.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         toolkit.description.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const connected = isConnected(toolkit.appName);
+      const connected = isConnectedCheck(toolkit.appName);
       const matchesFilter = filter === 'ALL' || (filter === 'CONNECTED' && connected);
+      
+      const matchesCategory = targetCategory === "All Categories" || (toolkit.categories && toolkit.categories.includes(targetCategory));
 
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesFilter && matchesCategory;
     });
-  }, [toolkits, connections, searchQuery, filter]);
+  }, [toolkits, connections, searchQuery, filter, targetCategory]);
 
   const visibleCount = 24 + (loadMoreCount * 24);
   const visibleToolkits = useMemo(() => {
@@ -45,6 +72,12 @@ export default function IntegrationView() {
   const handleFilterChange = (newFilter: 'ALL' | 'CONNECTED') => {
     setFilter(newFilter);
     setLoadMoreCount(0);
+  };
+  
+  const handleCategoryChange = (category: string) => {
+    setTargetCategory(category);
+    setLoadMoreCount(0);
+    setIsCategoryDropdownOpen(false);
   };
 
   const handleSearchChange = (value: string) => {
@@ -66,13 +99,15 @@ export default function IntegrationView() {
     )?.id || connections.find(c => c.appName.toLowerCase() === appName.toLowerCase())?.id;
   };
 
+  const capitalize = (s: string) => s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
   return (
     <div style={{ padding: '40px', background: 'var(--bg-main)', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <div style={{ marginBottom: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
           <div>
-            <h1 style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Integrations</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Connect your favorite tools to supercharge your Workspace Agents.</p>
+            <h1 className="greeting-text" style={{ fontSize: '32px', marginBottom: '4px' }}>Integrations</h1>
+            <p className="tagline">Connect your favorite tools to supercharge your Workspace Agents.</p>
           </div>
           <button 
             onClick={refresh}
@@ -84,8 +119,9 @@ export default function IntegrationView() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ position: 'relative', width: '380px', maxWidth: '100%' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {/* Search */}
+          <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
             <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} size={18} />
             <input 
               type="text"
@@ -105,8 +141,105 @@ export default function IntegrationView() {
               }}
             />
           </div>
-          
-          <div style={{ background: 'var(--bg-white)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-light)', display: 'flex' }}>
+
+          {/* Category Dropdown */}
+          <div ref={categoryDropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                background: 'var(--bg-white)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: targetCategory === 'All Categories' ? 'var(--text-secondary)' : 'var(--text-primary)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                height: '44px',
+                width: 'auto',
+                minWidth: '220px',
+                maxWidth: '400px'
+              }}
+            >
+              <Layers size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>{capitalize(targetCategory)}</span>
+              <ChevronDown 
+                size={16} 
+                style={{ 
+                  color: 'var(--text-tertiary)', 
+                  flexShrink: 0,
+                  transition: 'transform 0.2s',
+                  transform: isCategoryDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                }} 
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isCategoryDropdownOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                width: 'auto',
+                minWidth: '220px',
+                maxWidth: '400px',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                background: 'var(--bg-white)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '12px',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                zIndex: 50,
+                padding: '6px',
+                animation: 'fadeIn 0.15s ease-out'
+              }}>
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => handleCategoryChange(category)}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      background: targetCategory === category ? 'var(--bg-secondary)' : 'transparent',
+                      color: targetCategory === category ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      border: 'none',
+                      transition: 'all 0.15s',
+                      fontWeight: targetCategory === category ? 500 : 400,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                    onMouseOver={(e) => {
+                      if (targetCategory !== category) {
+                        e.currentTarget.style.background = 'var(--bg-main)';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (targetCategory !== category) {
+                        e.currentTarget.style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    <span>{capitalize(category)}</span>
+                    {targetCategory === category && (
+                      <Check size={16} style={{ color: 'var(--text-primary)', flexShrink: 0 }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Connected / All Apps Toggle */}
+          <div style={{ background: 'var(--bg-white)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-light)', display: 'flex', marginLeft: 'auto', flexShrink: 0 }}>
             <button
               onClick={() => handleFilterChange('CONNECTED')}
               style={{
@@ -139,7 +272,6 @@ export default function IntegrationView() {
             >
               All Apps
             </button>
-            
           </div>
         </div>
       </div>

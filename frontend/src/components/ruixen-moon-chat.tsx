@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { marked } from "marked";
 import {
   ImageIcon,
-  FileUp,
   ArrowUpIcon,
   Paperclip,
   PlusIcon,
@@ -17,6 +16,10 @@ import {
   Menu,
   Layers,
   X,
+  Pencil,
+  BarChart2,
+  Zap,
+  BookOpen,
 } from "lucide-react";
 
 // Helper function to add target="_blank" to all links
@@ -304,12 +307,12 @@ export default function RuixenMoonChat({
                         className="w-14 h-14 rounded-md object-cover border border-border"
                       />
                       {removeAttachment && (
-                        <button
-                          onClick={() => removeAttachment(idx)}
-                          className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          ×
-                        </button>
+                          <button
+                            onClick={() => removeAttachment(idx)}
+                            className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
                       )}
                     </div>
                   ))}
@@ -500,9 +503,9 @@ export default function RuixenMoonChat({
                     {removeAttachment && (
                       <button
                         onClick={() => removeAttachment(idx)}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        ×
+                        <X className="w-3 h-3" />
                       </button>
                     )}
                   </div>
@@ -624,11 +627,43 @@ export default function RuixenMoonChat({
           </div>
 
           {/* Quick Actions */}
-          <div className="flex items-center justify-center flex-wrap gap-2 mt-6 opacity-60 hover:opacity-100 transition-opacity">
-            <QuickAction icon={<Code2 className="w-3.5 h-3.5" />} label="Code" />
-            <QuickAction icon={<Palette className="w-3.5 h-3.5" />} label="Design" />
-            <QuickAction icon={<PlusIcon className="w-3.5 h-3.5" />} label="Plan" />
-            <QuickAction icon={<FileUp className="w-3.5 h-3.5" />} label="Analyze" />
+          <div className="flex items-center justify-center flex-wrap gap-2 mt-6">
+            <QuickAction
+              icon={<Code2 className="w-3.5 h-3.5" />}
+              label="Build an app"
+              prompt="Create a full web app for a food-based restaurant with a menu, ordering system, and contact page. Include HTML, CSS, and JavaScript."
+              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
+            />
+            <QuickAction
+              icon={<Palette className="w-3.5 h-3.5" />}
+              label="Design a UI"
+              prompt="Design a modern, clean landing page UI for a SaaS productivity tool. Describe the layout, color scheme, typography, and key sections."
+              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
+            />
+            <QuickAction
+              icon={<BookOpen className="w-3.5 h-3.5" />}
+              label="Plan a project"
+              prompt="Create a detailed project plan for launching a mobile app in 3 months. Include milestones, tasks, team roles, and a timeline."
+              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
+            />
+            <QuickAction
+              icon={<BarChart2 className="w-3.5 h-3.5" />}
+              label="Analyze data"
+              prompt="Analyze the following sales data and give me key insights, trends, and recommendations: [paste your data here]"
+              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
+            />
+            <QuickAction
+              icon={<Pencil className="w-3.5 h-3.5" />}
+              label="Write content"
+              prompt="Write a professional blog post about the benefits of AI in modern businesses. Make it engaging, SEO-friendly, and around 800 words."
+              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
+            />
+            <QuickAction
+              icon={<Zap className="w-3.5 h-3.5" />}
+              label="Connect an app"
+              prompt="Help me connect my Gmail and Slack so that every important email I receive automatically sends a notification to my Slack channel."
+              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
+            />
           </div>
         </div>
       </div>
@@ -639,13 +674,16 @@ export default function RuixenMoonChat({
 interface QuickActionProps {
   icon: React.ReactNode;
   label: string;
+  prompt: string;
+  onSelect: (prompt: string) => void;
 }
 
-function QuickAction({ icon, label }: QuickActionProps) {
+function QuickAction({ icon, label, prompt, onSelect }: QuickActionProps) {
   return (
     <Button
       variant="outline"
-      className="flex items-center gap-2 rounded-full border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground hover:bg-secondary h-8 px-4 text-xs font-medium transition-all"
+      onClick={() => onSelect(prompt)}
+      className="flex items-center gap-2 rounded-full border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground hover:bg-secondary h-8 px-4 text-xs font-medium transition-all cursor-pointer"
     >
       {icon}
       <span>{label}</span>

@@ -11,7 +11,8 @@ async function listApps() {
         name: t.name,
         appName: t.slug,
         description: t.meta?.description || '',
-        logo: t.meta?.logo || ''
+        logo: t.meta?.logo || '',
+        categories: (t.meta?.categories || []).map(c => c.name)
     }));
 }
 

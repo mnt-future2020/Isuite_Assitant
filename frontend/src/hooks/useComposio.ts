@@ -8,6 +8,7 @@ export type Toolkit = {
   description: string;
   id: string;
   logo?: string;
+  categories?: string[];
 };
 
 export type Connection = {
@@ -170,7 +171,7 @@ export function useComposio(userId?: string) {
     }, 5000);
 
     return () => clearInterval(intervalId);
-  }, [userId]); // Only depend on userId, not the functions
+  }, [userId, fetchApps, fetchConnections]);
 
   return {
     toolkits,
