@@ -369,9 +369,10 @@ export default function RuixenMoonChat({
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
+                    multiple
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileAttach(file);
+                      const files = e.target.files;
+                      if (files) Array.from(files).forEach(f => handleFileAttach(f));
                       e.target.value = "";
                     }}
                   />
@@ -380,9 +381,10 @@ export default function RuixenMoonChat({
                     ref={imageInputRef}
                     className="hidden"
                     accept="image/*"
+                    multiple
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileAttach(file);
+                      const files = e.target.files;
+                      if (files) Array.from(files).forEach(f => handleFileAttach(f));
                       e.target.value = "";
                     }}
                   />
@@ -562,9 +564,10 @@ export default function RuixenMoonChat({
                   type="file"
                   ref={fileInputRef}
                   className="hidden"
+                  multiple
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileAttach(file);
+                    const files = e.target.files;
+                    if (files) Array.from(files).forEach(f => handleFileAttach(f));
                     e.target.value = "";
                   }}
                 />
@@ -573,9 +576,10 @@ export default function RuixenMoonChat({
                   ref={imageInputRef}
                   className="hidden"
                   accept="image/*"
+                  multiple
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileAttach(file);
+                    const files = e.target.files;
+                    if (files) Array.from(files).forEach(f => handleFileAttach(f));
                     e.target.value = "";
                   }}
                 />
