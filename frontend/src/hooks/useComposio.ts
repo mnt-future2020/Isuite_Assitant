@@ -9,6 +9,7 @@ export type Toolkit = {
   id: string;
   logo?: string;
   categories?: string[];
+  toolCount?: number;
 };
 
 export type Connection = {
@@ -16,6 +17,12 @@ export type Connection = {
   appName: string;
   status: string;
   userId: string;
+};
+
+export type AppTool = {
+  slug: string;
+  name: string;
+  description: string;
 };
 
 // Get API URL from environment
@@ -27,6 +34,8 @@ export function useComposio(userId?: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [popupWindow, setPopupWindow] = useState<Window | null>(null);
   const [previousConnectionCount, setPreviousConnectionCount] = useState(0);
+  const [appToolsCache, setAppToolsCache] = useState<Record<string, AppTool[]>>({});
+  const [loadingTools, setLoadingTools] = useState<Record<string, boolean>>({});
 
   const fetchApps = useCallback(async () => {
     setIsLoading(true);
@@ -173,12 +182,37 @@ export function useComposio(userId?: string) {
     return () => clearInterval(intervalId);
   }, [userId, fetchApps, fetchConnections]);
 
+  const fetchAppTools = useCallback(async (appName: string): Promise<AppTool[]> => {
+    // Return cached if available
+    if (appToolsCache[appName]) return appToolsCache[appName];
+    // Don't fetch if already loading
+    if (loadingTools[appName]) return [];
+
+    setLoadingTools(prev => ({ ...prev, [appName]: true }));
+    try {
+      const response = await fetch(`${API_URL}/api/app-tools?appName=${encodeURIComponent(appName)}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const tools: AppTool[] = data.tools || [];
+      setAppToolsCache(prev => ({ ...prev, [appName]: tools }));
+      return tools;
+    } catch (error) {
+      console.error(`Failed to fetch tools for ${appName}:`, error);
+      return [];
+    } finally {
+      setLoadingTools(prev => ({ ...prev, [appName]: false }));
+    }
+  }, [appToolsCache, loadingTools]);
+
   return {
     toolkits,
     connections,
     isLoading,
     initiateConnection,
     disconnectApp,
+    fetchAppTools,
+    appToolsCache,
+    loadingTools,
     refresh: () => { fetchApps(); fetchConnections(); }
   };
 }

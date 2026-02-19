@@ -22,6 +22,7 @@ router.get('/apps', integrationController.getApps);
 router.get('/connections', integrationController.getConnections);
 router.post('/connect', integrationController.connect);
 router.post('/disconnect', integrationController.disconnect);
+router.get('/app-tools', integrationController.getAppTools);
 
 // Health
 router.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));

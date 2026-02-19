@@ -97,9 +97,31 @@ async function disconnectApp(connectionId) {
     }
 }
 
+/**
+ * Get tools/actions available for a specific app
+ */
+async function getAppTools(appName) {
+    try {
+        const tools = await composio.tools.getRawComposioTools({
+            toolkits: [appName],
+            limit: 100
+        });
+
+        return (tools || []).map(t => ({
+            slug: t.slug,
+            name: t.name,
+            description: t.description || ''
+        }));
+    } catch (error) {
+        console.error(`[SERVICE] Failed to get tools for ${appName}:`, error.message);
+        return [];
+    }
+}
+
 export {
     listApps,
     listConnections,
     initiateAppConnection,
-    disconnectApp
+    disconnectApp,
+    getAppTools
 };

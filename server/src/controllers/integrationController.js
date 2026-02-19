@@ -62,4 +62,16 @@ async function disconnect(req, res) {
     }
 }
 
-export { getApps, getConnections, connect, disconnect };
+async function getAppTools(req, res) {
+    const { appName } = req.query;
+    if (!appName) return res.status(400).json({ error: 'appName is required' });
+
+    try {
+        const tools = await integrationService.getAppTools(appName);
+        res.json({ tools });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+export { getApps, getConnections, connect, disconnect, getAppTools };
