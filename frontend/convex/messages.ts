@@ -19,6 +19,12 @@ export const send = mutation({
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
     images: v.optional(v.array(v.string())),
+    attachments: v.optional(v.array(v.object({
+      url: v.string(),
+      name: v.string(),
+      type: v.string(),
+      isImage: v.boolean(),
+    }))),
     status: v.optional(v.union(v.literal("streaming"), v.literal("complete"), v.literal("error"))),
   },
   handler: async (ctx, args) => {
@@ -27,6 +33,7 @@ export const send = mutation({
       role: args.role,
       content: args.content,
       images: args.images,
+      attachments: args.attachments,
       status: args.status ?? "complete",
       createdAt: Date.now(),
     });

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { useQuery } from "convex/react";
@@ -11,6 +11,7 @@ import RuixenMoonChat from "@/components/ruixen-moon-chat";
 import AppSidebar from "@/components/AppSidebar";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { useToast } from "@/hooks/use-toast";
 
 // Attachment type for image uploads
 type Attachment = {
@@ -19,10 +20,25 @@ type Attachment = {
   data: string; // base64 encoded
 };
 
+// File size limits (in bytes) - Conservative limits to protect user's API tokens
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file (reduced from 25MB)
+const MAX_TOTAL_SIZE = 20 * 1024 * 1024; // 20MB total per message (reduced from 50MB)
+const MAX_FILES = 3; // Maximum 3 files per message (reduced from 10)
+
+// Format bytes to human-readable size
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { licenseKey } = useLicenseAuth();
+  const { toast } = useToast();
   
   const chatIdParam = searchParams.get("chatId");
   const selectedConversationId = chatIdParam ? (chatIdParam as Id<"conversations">) : null;
@@ -30,6 +46,19 @@ function HomeContent() {
   const { messages, sendMessage, isLoading, isHistoryLoading, stopQuery } = useChat(selectedConversationId);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Show toast when upload error changes
+  useEffect(() => {
+    if (uploadError) {
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: uploadError,
+        duration: 5000,
+      });
+    }
+  }, [uploadError, toast]);
 
   const convexUser = useQuery(api.users.getMe, licenseKey ? { licenseKey } : "skip");
   const settings = useQuery(api.users.getSettings, convexUser ? { userId: convexUser._id } : "skip");
@@ -58,11 +87,36 @@ function HomeContent() {
     router.push("/");
   };
 
-  // Handle file attachment - read as base64 for images
+  // Handle file attachment - read as base64 for all files with size validation
   const handleFileAttach = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      // For non-image files, just add the filename to input
-      setInput(prev => prev + `\n[Attached: ${file.name}]`);
+    // Clear previous errors
+    setUploadError(null);
+
+    // Check file count limit
+    if (attachments.length >= MAX_FILES) {
+      setUploadError(`Maximum ${MAX_FILES} files allowed per message`);
+      return;
+    }
+
+    // Check individual file size
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError(`File "${file.name}" is too large. Maximum size is ${formatFileSize(MAX_FILE_SIZE)}`);
+      return;
+    }
+
+    // Calculate current total size
+    const currentTotalSize = attachments.reduce((total, att) => {
+      // Base64 is ~33% larger than original, so decode size
+      const decodedSize = (att.data.length * 3) / 4;
+      return total + decodedSize;
+    }, 0);
+
+    // Check total size limit
+    if (currentTotalSize + file.size > MAX_TOTAL_SIZE) {
+      setUploadError(
+        `Total attachments size would exceed ${formatFileSize(MAX_TOTAL_SIZE)}. ` +
+        `Current: ${formatFileSize(currentTotalSize)}, Adding: ${formatFileSize(file.size)}`
+      );
       return;
     }
 
@@ -70,11 +124,24 @@ function HomeContent() {
     reader.onload = () => {
       const result = reader.result as string;
       const base64 = result.split(',')[1];
-      setAttachments(prev => [...prev, {
-        name: file.name,
-        type: file.type,
-        data: base64
-      }]);
+      
+      // Use functional update to check current state
+      setAttachments(prev => {
+        // Double-check limit with current state
+        if (prev.length >= MAX_FILES) {
+          setUploadError(`Maximum ${MAX_FILES} files allowed per message`);
+          return prev; // Don't add the file
+        }
+        
+        return [...prev, {
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+          data: base64
+        }];
+      });
+    };
+    reader.onerror = () => {
+      setUploadError(`Failed to read file "${file.name}"`);
     };
     reader.readAsDataURL(file);
   };
@@ -97,6 +164,8 @@ function HomeContent() {
           messages={messages || []}
           conversationTitle={conversations.find(c => c._id === selectedConversationId)?.title}
           onNewChat={startNewChat}
+          uploadError={uploadError}
+          onClearUploadError={() => setUploadError(null)}
         />
       </main>
     </div>

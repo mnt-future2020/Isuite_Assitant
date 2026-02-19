@@ -31,7 +31,7 @@ function createApp() {
         credentials: true,
         optionsSuccessStatus: 200
     }));
-    app.use(express.json({ limit: '50mb' })); // Increased limit for base64 image uploads
+    app.use(express.json({ limit: '25mb' })); // Reduced from 50mb to match new file limits
 
     // Mount API routes
     app.use('/api', apiRoutes);

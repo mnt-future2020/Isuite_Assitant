@@ -9,6 +9,12 @@ export type Message = {
   content: string;
   id: string;
   images?: string[];
+  attachments?: Array<{
+    url: string;
+    name: string;
+    type: string;
+    isImage: boolean;
+  }>;
   status?: "streaming" | "complete" | "error";
   toolCalls?: Array<{
     name: string;
@@ -67,6 +73,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
             content: m.content,
             id: m._id,
             images: m.images,
+            attachments: m.attachments,
             status: m.status as Message["status"],
           }));
           if (streamingMsg && streamingMsg.content.length > 0) {
@@ -88,6 +95,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
             content: m.content,
             id: m._id,
             images: m.images,
+            attachments: m.attachments,
             status: m.status as Message["status"],
           })),
         );
@@ -137,7 +145,13 @@ export function useChat(conversationId: Id<"conversations"> | null) {
 
       setIsLoading(true);
       let chatId = activeConversationId;
-      let uploadedImages: Array<{ path: string; url: string; originalName: string }> = [];
+      let uploadedImages: Array<{ 
+        path: string; 
+        url: string; 
+        originalName: string;
+        type?: string;
+        isImage?: boolean;
+      }> = [];
 
       // 1. Upload images first if any
       if (attachments.length > 0) {
@@ -160,10 +174,28 @@ export function useChat(conversationId: Id<"conversations"> | null) {
               uploadedImages = data.uploadedImages;
             }
           } else {
-            console.error("Failed to upload images");
+            const errorData = await uploadRes.json().catch(() => ({ error: 'Upload failed' }));
+            const errorMsg: Message = {
+              role: "assistant",
+              content: `⚠️ Upload Error: ${errorData.error || 'Failed to upload files'}`,
+              id: `error_${Date.now()}`,
+              status: "error",
+            };
+            setMessages((prev) => [...prev, errorMsg]);
+            setIsLoading(false);
+            return;
           }
         } catch (err) {
           console.error("Image upload error:", err);
+          const errorMsg: Message = {
+            role: "assistant",
+            content: `⚠️ Upload Error: ${err instanceof Error ? err.message : 'Failed to upload files'}`,
+            id: `error_${Date.now()}`,
+            status: "error",
+          };
+          setMessages((prev) => [...prev, errorMsg]);
+          setIsLoading(false);
+          return;
         }
       }
 
@@ -190,6 +222,14 @@ export function useChat(conversationId: Id<"conversations"> | null) {
       // 4. SAVE USER MESSAGE TO CONVEX IMMEDIATELY
       const imageUrls = uploadedImages.map((img) => img.url);
       const imageDataUrls = attachments.map(att => `data:${att.type};base64,${att.data}`);
+      
+      // Prepare attachments metadata for Convex
+      const attachmentsMetadata = uploadedImages.map((img) => ({
+        url: img.url,
+        name: img.originalName,
+        type: img.type ?? 'application/octet-stream',
+        isImage: img.isImage ?? false,
+      }));
 
       let userMsgId: Id<"messages"> | undefined;
       if (chatId) {
@@ -198,6 +238,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
           role: "user",
           content,
           images: imageUrls.length > 0 ? imageUrls : undefined,
+          attachments: attachmentsMetadata.length > 0 ? attachmentsMetadata : undefined,
           status: "complete",
         });
       }
@@ -208,6 +249,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
         content,
         id: userMsgId || `temp_user_${Date.now()}`,
         images: imageDataUrls.length > 0 ? imageDataUrls : undefined,
+        attachments: attachmentsMetadata.length > 0 ? attachmentsMetadata : undefined,
         status: "complete",
       };
       setMessages((prev) => [...prev, userMessage]);

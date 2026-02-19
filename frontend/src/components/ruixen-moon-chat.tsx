@@ -21,7 +21,32 @@ import {
   Zap,
   BookOpen,
   AlertCircle,
+  FileText,
+  File,
 } from "lucide-react";
+
+// Helper function to get file icon based on type
+function getFileIcon(fileName: string) {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  
+  // Code files
+  if (['js', 'jsx', 'ts', 'tsx', 'py', 'java', 'cpp', 'c', 'cs', 'go', 'rs', 'rb', 'php', 'swift', 'kt'].includes(ext || '')) {
+    return <Code2 className="w-4 h-4 text-blue-500 flex-shrink-0" />;
+  }
+  
+  // Text/Document files
+  if (['txt', 'md', 'doc', 'docx', 'pdf'].includes(ext || '')) {
+    return <FileText className="w-4 h-4 text-orange-500 flex-shrink-0" />;
+  }
+  
+  // Data files
+  if (['json', 'xml', 'yaml', 'yml', 'csv', 'sql'].includes(ext || '')) {
+    return <BarChart2 className="w-4 h-4 text-green-500 flex-shrink-0" />;
+  }
+  
+  // Default file icon
+  return <File className="w-4 h-4 text-muted-foreground flex-shrink-0" />;
+}
 
 // Helper function to add target="_blank" to all links
 function parseMarkdownWithExternalLinks(content: string): string {
@@ -69,6 +94,12 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   images?: string[];
+  attachments?: Array<{
+    url: string;
+    name: string;
+    type: string;
+    isImage: boolean;
+  }>;
   status?: "streaming" | "complete" | "error";
 }
 
@@ -86,6 +117,8 @@ interface RuixenMoonChatProps {
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
   isHistoryLoading?: boolean;
+  uploadError?: string | null;
+  onClearUploadError?: () => void;
 }
 
 export default function RuixenMoonChat({
@@ -102,6 +135,8 @@ export default function RuixenMoonChat({
   isSidebarOpen,
   onToggleSidebar,
   isHistoryLoading = false,
+  uploadError = null,
+  onClearUploadError,
 }: RuixenMoonChatProps) {
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: 48,
@@ -192,7 +227,7 @@ export default function RuixenMoonChat({
               const isAssistantLoading = msg.role === "assistant" && !hasContent && isLoading;
               // Detect interrupted messages (loaded from DB after refresh with status still "streaming")
               const isInterrupted = msg.role === "assistant" && msg.status === "streaming" && !isLoading;
-              const hasImages = msg.images && msg.images.length > 0;
+              const hasAttachments = (msg.attachments && msg.attachments.length > 0) || (msg.images && msg.images.length > 0);
 
               return (
                 <div
@@ -252,33 +287,102 @@ export default function RuixenMoonChat({
                     </div>
                   )}
 
-                  {/* Images - Outside Bubble, displayed as small thumbnails */}
-                  {hasImages && (
+                  {/* Attachments - Display with metadata if available, fallback to images array */}
+                  {hasAttachments && (
                     <div className={cn(
-                      "flex flex-wrap gap-2 mt-1", 
+                      "flex flex-wrap gap-2 mt-2", 
                       msg.role === "user" ? "justify-end" : "justify-start"
                     )}>
-                      {msg.images!.map((imgData, idx) => {
+                      {/* Render attachments with metadata first */}
+                      {msg.attachments?.map((att, idx) => {
+                        const imgSrc = att.url.startsWith('data:') 
+                          ? att.url 
+                          : att.url.startsWith('http') 
+                            ? att.url 
+                            : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${att.url}`;
+                        
+                        if (att.isImage) {
+                          // Display as image thumbnail
+                          return (
+                            <div 
+                               key={`att-${idx}`} 
+                               onClick={() => setSelectedImage(imgSrc)}
+                               className="relative rounded-xl overflow-hidden border border-border/50 cursor-pointer hover:opacity-80 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                            >
+                              <img
+                                src={imgSrc}
+                                alt={att.name}
+                                className="w-11 h-11 object-cover bg-muted/20" 
+                                loading="lazy"
+                                onError={(e) => {
+                                  const parent = e.currentTarget.parentElement;
+                                  if (parent) parent.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          );
+                        } else {
+                          // Display as file chip with original name
+                          return (
+                            <div 
+                              key={`att-${idx}`}
+                              className="flex items-center gap-2.5 px-3.5 py-2.5 bg-secondary/70 border border-border rounded-lg hover:bg-secondary transition-colors cursor-default"
+                            >
+                              {getFileIcon(att.name)}
+                              <span className="text-sm text-foreground max-w-[180px] truncate font-medium">
+                                {att.name}
+                              </span>
+                            </div>
+                          );
+                        }
+                      })}
+                      
+                      {/* Fallback: Render legacy images array if no attachments metadata */}
+                      {!msg.attachments && msg.images?.map((imgData, idx) => {
+                        const isBase64Image = imgData.startsWith('data:image/');
+                        const hasImageExtension = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?|$)/i.test(imgData);
+                        const isUploadPath = imgData.includes('/uploads/') || imgData.includes('/images/');
+                        const isActualImage = isBase64Image || hasImageExtension || isUploadPath;
+                        
                         const imgSrc = imgData.startsWith('data:') 
                           ? imgData 
                           : imgData.startsWith('http') 
                             ? imgData 
                             : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${imgData}`;
                         
-                        return (
-                          <div 
-                             key={idx} 
-                             onClick={() => setSelectedImage(imgSrc)}
-                             className="relative rounded-xl overflow-hidden border border-border/50 cursor-pointer hover:opacity-80 transition-all hover:scale-105 active:scale-95 shadow-sm"
-                          >
-                            <img
-                              src={imgSrc}
-                              alt="Attachment"
-                              className="w-11 h-11 object-cover bg-muted/20" 
-                              loading="lazy"
-                            />
-                          </div>
-                        );
+                        if (isActualImage) {
+                          return (
+                            <div 
+                               key={`img-${idx}`} 
+                               onClick={() => setSelectedImage(imgSrc)}
+                               className="relative rounded-xl overflow-hidden border border-border/50 cursor-pointer hover:opacity-80 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                            >
+                              <img
+                                src={imgSrc}
+                                alt="Attachment"
+                                className="w-11 h-11 object-cover bg-muted/20" 
+                                loading="lazy"
+                                onError={(e) => {
+                                  const parent = e.currentTarget.parentElement;
+                                  if (parent) parent.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          );
+                        } else {
+                          const fileName = decodeURIComponent(imgData.split('/').pop()?.split('?')[0] || 'Attachment');
+                          return (
+                            <div 
+                              key={`img-${idx}`}
+                              className="flex items-center gap-2.5 px-3.5 py-2.5 bg-secondary/70 border border-border rounded-lg hover:bg-secondary transition-colors cursor-default"
+                            >
+                              {getFileIcon(fileName)}
+                              <span className="text-sm text-foreground max-w-[180px] truncate font-medium">
+                                {fileName}
+                              </span>
+                            </div>
+                          );
+                        }
                       })}
                     </div>
                   )}
@@ -315,24 +419,66 @@ export default function RuixenMoonChat({
           <div className="w-full max-w-3xl mx-auto">
             <div className="relative bg-background border border-input rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-ring transition-all">
               {attachments.length > 0 && (
-                <div className="flex gap-3 p-3 flex-wrap border-b border-border">
-                  {attachments.map((att, idx) => (
-                    <div key={idx} className="relative group">
-                      <img
-                        src={`data:${att.type};base64,${att.data}`}
-                        alt={att.name}
-                        className="w-14 h-14 rounded-md object-cover border border-border"
-                      />
-                      {removeAttachment && (
-                          <button
-                            onClick={() => removeAttachment(idx)}
-                            className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                      )}
+                <div className="flex gap-2 p-3 flex-wrap border-b border-border">
+                  {attachments.map((att, idx) => {
+                    const isImage = att.type.startsWith('image/');
+                    return (
+                      <div key={idx} className="relative group">
+                        {isImage ? (
+                          <div className="relative">
+                            <img
+                              src={`data:${att.type};base64,${att.data}`}
+                              alt={att.name}
+                              className="w-16 h-16 rounded-lg object-cover border border-border"
+                            />
+                            {removeAttachment && (
+                              <button
+                                onClick={() => removeAttachment(idx)}
+                                className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center p-0 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 border border-border rounded-lg hover:bg-secondary transition-colors">
+                            {getFileIcon(att.name)}
+                            <span className="text-sm text-foreground max-w-[120px] truncate">
+                              {att.name}
+                            </span>
+                            {removeAttachment && (
+                              <button
+                                onClick={() => removeAttachment(idx)}
+                                className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Upload Error Display */}
+              {uploadError && (
+                <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-destructive">{uploadError}</p>
                     </div>
-                  ))}
+                    {onClearUploadError && (
+                      <button
+                        onClick={onClearUploadError}
+                        className="text-destructive hover:text-destructive/80 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -361,7 +507,13 @@ export default function RuixenMoonChat({
                       variant="ghost"
                       size="icon"
                       className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-full h-8 w-8"
-                      onClick={() => setIsAttachOpen(!isAttachOpen)}
+                      onClick={() => {
+                        if (attachments.length >= 3) {
+                          return; // Don't open menu if at limit
+                        }
+                        setIsAttachOpen(!isAttachOpen);
+                      }}
+                      disabled={attachments.length >= 3}
                    >
                       <Paperclip className="w-4 h-4" />
                    </Button>
@@ -372,7 +524,9 @@ export default function RuixenMoonChat({
                     multiple
                     onChange={(e) => {
                       const files = e.target.files;
-                      if (files) Array.from(files).forEach(f => handleFileAttach(f));
+                      if (files) {
+                        Array.from(files).forEach(f => handleFileAttach(f));
+                      }
                       e.target.value = "";
                     }}
                   />
@@ -384,7 +538,9 @@ export default function RuixenMoonChat({
                     multiple
                     onChange={(e) => {
                       const files = e.target.files;
-                      if (files) Array.from(files).forEach(f => handleFileAttach(f));
+                      if (files) {
+                        Array.from(files).forEach(f => handleFileAttach(f));
+                      }
                       e.target.value = "";
                     }}
                   />
@@ -511,24 +667,66 @@ export default function RuixenMoonChat({
         <div className="w-full animate-in slide-in-from-bottom-5 fade-in duration-500">
           <div className="relative bg-background border border-input rounded-2xl shadow-lg shadow-black/5 focus-within:shadow-xl focus-within:border-ring transition-all duration-300">
             {attachments.length > 0 && (
-              <div className="flex gap-3 p-3 flex-wrap border-b border-border">
-                {attachments.map((att, idx) => (
-                  <div key={idx} className="relative group">
-                    <img
-                      src={`data:${att.type};base64,${att.data}`}
-                      alt={att.name}
-                      className="w-14 h-14 rounded-md object-cover border border-border"
-                    />
-                    {removeAttachment && (
-                      <button
-                        onClick={() => removeAttachment(idx)}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
+              <div className="flex gap-2 p-3 flex-wrap border-b border-border">
+                {attachments.map((att, idx) => {
+                  const isImage = att.type.startsWith('image/');
+                  return (
+                    <div key={idx} className="relative group">
+                      {isImage ? (
+                        <div className="relative">
+                          <img
+                            src={`data:${att.type};base64,${att.data}`}
+                            alt={att.name}
+                            className="w-16 h-16 rounded-lg object-cover border border-border"
+                          />
+                          {removeAttachment && (
+                            <button
+                              onClick={() => removeAttachment(idx)}
+                              className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center p-0 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 border border-border rounded-lg hover:bg-secondary transition-colors">
+                          {getFileIcon(att.name)}
+                          <span className="text-sm text-foreground max-w-[120px] truncate">
+                            {att.name}
+                          </span>
+                          {removeAttachment && (
+                            <button
+                              onClick={() => removeAttachment(idx)}
+                              className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Upload Error Display */}
+            {uploadError && (
+              <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-destructive">{uploadError}</p>
                   </div>
-                ))}
+                  {onClearUploadError && (
+                    <button
+                      onClick={onClearUploadError}
+                      className="text-destructive hover:text-destructive/80 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -556,7 +754,13 @@ export default function RuixenMoonChat({
                   variant="ghost"
                   size="icon"
                   className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-full h-9 w-9"
-                  onClick={() => setIsAttachOpen(!isAttachOpen)}
+                  onClick={() => {
+                    if (attachments.length >= 3) {
+                      return; // Don't open menu if at limit
+                    }
+                    setIsAttachOpen(!isAttachOpen);
+                  }}
+                  disabled={attachments.length >= 3}
                 >
                   <Paperclip className="w-4 h-4" />
                 </Button>
@@ -567,7 +771,9 @@ export default function RuixenMoonChat({
                   multiple
                   onChange={(e) => {
                     const files = e.target.files;
-                    if (files) Array.from(files).forEach(f => handleFileAttach(f));
+                    if (files) {
+                      Array.from(files).forEach(f => handleFileAttach(f));
+                    }
                     e.target.value = "";
                   }}
                 />
@@ -579,7 +785,9 @@ export default function RuixenMoonChat({
                   multiple
                   onChange={(e) => {
                     const files = e.target.files;
-                    if (files) Array.from(files).forEach(f => handleFileAttach(f));
+                    if (files) {
+                      Array.from(files).forEach(f => handleFileAttach(f));
+                    }
                     e.target.value = "";
                   }}
                 />
