@@ -33,6 +33,7 @@ export default defineSchema({
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
     images: v.optional(v.array(v.string())), // Array of image URLs/paths
+    status: v.optional(v.union(v.literal("streaming"), v.literal("complete"), v.literal("error"))), // Message status for persistence
     embedding: v.optional(v.array(v.float64())), // For Vector Search
     createdAt: v.number(),
   })

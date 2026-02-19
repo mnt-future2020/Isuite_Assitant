@@ -1,5 +1,8 @@
 import { getOrCreateSession } from '../config/composio.js';
 import { getProviderInstance } from '../services/providerService.js';
+import { convex } from '../config/convex.js';
+import { anyApi } from 'convex/server';
+const api = anyApi;
 import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs';
 import path from 'path';
@@ -25,8 +28,13 @@ function saveImageToTemp(imageData, imageName, imageType) {
     return filepath;
 }
 
+// Throttle interval for flushing content to Convex (ms)
+const FLUSH_INTERVAL_MS = 500;
+
 /**
  * Handle streaming chat responses
+ * The server persists AI responses directly to Convex and continues 
+ * generating even if the client disconnects (like ChatGPT/Grok/Gemini).
  */
 async function chat(req, res) {
     const {
@@ -36,10 +44,11 @@ async function chat(req, res) {
         userId = 'default-user',
         provider: providerName = 'claude',
         model = null,
-        anthropicApiKey = null // User's own API key
+        anthropicApiKey = null, // User's own API key
+        assistantMessageId = null // Convex message ID for the assistant placeholder
     } = req.body;
 
-    console.log(`[CHAT] Request from ${userId} (${providerName}): ${message} - ChatId: ${chatId} - Images: ${images.length}`);
+    console.log(`[CHAT] Request from ${userId} (${providerName}): ${message} - ChatId: ${chatId} - Images: ${images.length} - AssistantMsgId: ${assistantMessageId}`);
 
     if (!message && images.length === 0) {
         return res.status(400).json({ error: 'Message or images required' });
@@ -56,8 +65,6 @@ async function chat(req, res) {
     let enhancedPrompt = message || '';
     
     if (images.length > 0) {
-        // Prepend image context to the prompt
-        // We assume 'path' is the absolute path on the server file system
         const imageContext = images.map(img => 
             `[User attached an image file at: ${img.path}. Please use the Read tool to view and analyze this image.]`
         ).join('\n');
@@ -78,7 +85,13 @@ async function chat(req, res) {
         if (!res.writableEnded) res.write(': heartbeat\n\n');
     }, 15000);
 
-    res.on('close', () => clearInterval(heartbeatInterval));
+    // Track client connection status
+    let clientConnected = true;
+    res.on('close', () => {
+        clientConnected = false;
+        clearInterval(heartbeatInterval);
+        console.log(`[CHAT] Client disconnected for chatId: ${chatId} - continuing generation in background`);
+    });
 
     try {
         const session = await getOrCreateSession(userId);
@@ -89,44 +102,142 @@ async function chat(req, res) {
             process.env.ANTHROPIC_API_KEY = anthropicApiKey;
         }
         
-        try {
-            const provider = getProviderInstance(providerName, { apiKey: anthropicApiKey });
+        // Run the streaming in a detached manner — won't stop on client disconnect
+        const streamingPromise = (async () => {
+            let fullAssistantContent = '';
+            let lastFlushedContent = '';
+            let flushTimer = null;
 
-            const mcpServers = {
-                composio: {
-                    type: 'http',
-                    url: session.mcp.url,
-                    headers: session.mcp.headers
+            // Throttled flush to Convex
+            const flushToConvex = async (content, force = false) => {
+                if (!assistantMessageId || content === lastFlushedContent) return;
+                
+                if (force) {
+                    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+                    lastFlushedContent = content;
+                    try {
+                        await convex.mutation(api.messages.updateContent, {
+                            messageId: assistantMessageId,
+                            content,
+                        });
+                    } catch (err) {
+                        console.error('[CHAT] Failed to flush content to Convex:', err.message);
+                    }
+                } else if (!flushTimer) {
+                    flushTimer = setTimeout(async () => {
+                        flushTimer = null;
+                        lastFlushedContent = fullAssistantContent;
+                        try {
+                            await convex.mutation(api.messages.updateContent, {
+                                messageId: assistantMessageId,
+                                content: fullAssistantContent,
+                            });
+                        } catch (err) {
+                            console.error('[CHAT] Failed to flush content to Convex:', err.message);
+                        }
+                    }, FLUSH_INTERVAL_MS);
                 }
             };
 
-            for await (const chunk of provider.query({
-                prompt: enhancedPrompt, // Use enhanced prompt with image paths
-                chatId,
-                userId,
-                mcpServers,
-                model,
-                allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'TodoWrite', 'Skill'],
-                maxTurns: 100
-            })) {
-                res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-            }
-        } finally {
-            // Restore original API key
-            if (originalApiKey !== undefined) {
-                process.env.ANTHROPIC_API_KEY = originalApiKey;
-            } else {
-                delete process.env.ANTHROPIC_API_KEY;
-            }
-        }
+            try {
+                const provider = getProviderInstance(providerName, { apiKey: anthropicApiKey });
 
-        clearInterval(heartbeatInterval);
-        if (!res.writableEnded) res.end();
+                const mcpServers = {
+                    composio: {
+                        type: 'http',
+                        url: session.mcp.url,
+                        headers: session.mcp.headers
+                    }
+                };
+
+                for await (const chunk of provider.query({
+                    prompt: enhancedPrompt,
+                    chatId,
+                    userId,
+                    mcpServers,
+                    model,
+                    allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'TodoWrite', 'Skill'],
+                    maxTurns: 100
+                })) {
+                    // Accumulate content if it's text
+                    if (chunk.type === 'text') {
+                        fullAssistantContent += chunk.content;
+                        // Throttled flush to Convex (runs regardless of client connection)
+                        flushToConvex(fullAssistantContent);
+                    }
+
+                    // Stream to client only if still connected
+                    if (clientConnected && !res.writableEnded) {
+                        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+                    }
+                }
+
+                // Generation complete — final flush + mark as complete
+                if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+
+                if (assistantMessageId) {
+                    try {
+                        await convex.mutation(api.messages.updateStatus, {
+                            messageId: assistantMessageId,
+                            status: 'complete',
+                            content: fullAssistantContent,
+                        });
+                        console.log(`[CHAT] Marked message ${assistantMessageId} as complete (${fullAssistantContent.length} chars)`);
+                    } catch (err) {
+                        console.error('[CHAT] Failed to mark message complete:', err.message);
+                    }
+                }
+            } catch (error) {
+                console.error('[CHAT] Streaming error:', error);
+
+                // Save partial content on error
+                if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+                
+                if (assistantMessageId) {
+                    try {
+                        await convex.mutation(api.messages.updateStatus, {
+                            messageId: assistantMessageId,
+                            status: 'error',
+                            content: fullAssistantContent || undefined,
+                        });
+                    } catch (err) {
+                        console.error('[CHAT] Failed to mark message as error:', err.message);
+                    }
+                }
+
+                // Send error to client if still connected
+                if (clientConnected && !res.writableEnded) {
+                    res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+                }
+            } finally {
+                // Restore original API key
+                if (originalApiKey !== undefined) {
+                    process.env.ANTHROPIC_API_KEY = originalApiKey;
+                } else {
+                    delete process.env.ANTHROPIC_API_KEY;
+                }
+
+                // Close SSE if client still connected
+                clearInterval(heartbeatInterval);
+                if (clientConnected && !res.writableEnded) {
+                    res.end();
+                }
+            }
+        })();
+
+        // Don't await the promise — let it run in the background
+        // This way even if the client disconnects, the generation continues
+        streamingPromise.catch(err => {
+            console.error('[CHAT] Background streaming error:', err);
+        });
+
     } catch (error) {
         clearInterval(heartbeatInterval);
         console.error('[CHAT] Controller Error:', error);
-        res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
-        res.end();
+        if (clientConnected && !res.writableEnded) {
+            res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+            res.end();
+        }
     }
 }
 

@@ -20,6 +20,7 @@ import {
   BarChart2,
   Zap,
   BookOpen,
+  AlertCircle,
 } from "lucide-react";
 
 // Helper function to add target="_blank" to all links
@@ -68,6 +69,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   images?: string[];
+  status?: "streaming" | "complete" | "error";
 }
 
 interface RuixenMoonChatProps {
@@ -186,7 +188,10 @@ export default function RuixenMoonChat({
               <>
             {messages.map((msg) => {
               const hasContent = msg.content && msg.content.trim().length > 0;
-              const isAssistantLoading = msg.role === "assistant" && !msg.content;
+              // Only show "Thinking..." if we're ACTIVELY streaming right now
+              const isAssistantLoading = msg.role === "assistant" && !hasContent && isLoading;
+              // Detect interrupted messages (loaded from DB after refresh with status still "streaming")
+              const isInterrupted = msg.role === "assistant" && msg.status === "streaming" && !isLoading;
               const hasImages = msg.images && msg.images.length > 0;
 
               return (
@@ -204,14 +209,13 @@ export default function RuixenMoonChat({
                     {msg.role === "user" ? "You" : "Assistant"}
                   </div>
                   
-                  {/* Text Bubble - Render if content exists or if it's loading */}
-                  {(hasContent || isAssistantLoading) && (
+                  {/* Text Bubble - Render if content exists, actively loading, or interrupted */}
+                  {(hasContent || isAssistantLoading || isInterrupted) && (
                     <div
                       className={cn(
                         "rounded-2xl text-sm leading-relaxed shadow-sm transition-all duration-200 break-words",
-                        // Dynamic width based on content length could include max-w here
                         "max-w-[85%]", 
-                        isAssistantLoading ? "px-3 py-2" : "px-4 py-2.5",
+                        (isAssistantLoading || (isInterrupted && !hasContent)) ? "px-3 py-2" : "px-4 py-2.5",
                         msg.role === "user"
                           ? "bg-primary text-primary-foreground"
                           : "bg-secondary text-secondary-foreground"
@@ -222,7 +226,7 @@ export default function RuixenMoonChat({
                           <div className="w-3.5 h-3.5 border-2 border-foreground/30 border-t-foreground/80 rounded-full animate-spin" />
                           <span className="text-sm font-medium text-muted-foreground animate-pulse">Thinking...</span>
                         </div>
-                      ) : (
+                      ) : hasContent ? (
                         <div 
                           className={cn("w-full overflow-hidden", msg.role === "assistant" && "markdown-content")}
                           dangerouslySetInnerHTML={{
@@ -231,7 +235,20 @@ export default function RuixenMoonChat({
                               : msg.content
                           }} 
                         />
-                      )}
+                      ) : null}
+                    </div>
+                  )}
+
+                  {/* Interrupted response indicator — shows for ALL interrupted messages (empty or partial) */}
+                  {isInterrupted && (
+                    <div className="flex items-center gap-1.5 mt-1 px-1">
+                      <AlertCircle className="w-3 h-3 text-amber-500" />
+                      <span className="text-xs text-amber-500/80">
+                        {hasContent 
+                          ? "Response was interrupted — you can ask again to continue"
+                          : "Response was interrupted before it started — please try again"
+                        }
+                      </span>
                     </div>
                   )}
 

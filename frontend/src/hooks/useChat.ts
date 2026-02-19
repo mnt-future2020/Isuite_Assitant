@@ -9,6 +9,7 @@ export type Message = {
   content: string;
   id: string;
   images?: string[];
+  status?: "streaming" | "complete" | "error";
   toolCalls?: Array<{
     name: string;
     input: Record<string, unknown>;
@@ -44,20 +45,53 @@ export function useChat(conversationId: Id<"conversations"> | null) {
     useState<Id<"conversations"> | null>(conversationId);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isGeneratingTitleRef = useRef(false);
+  // Track the streaming assistant message ID for live UI updates
+  const streamingAssistantIdRef = useRef<string | null>(null);
 
-  // Sync with Convex messages when conversationId changes
+  // Sync with Convex messages — this is the PRIMARY data source
+  // Convex's useQuery is reactive, so when the server updates messages in Convex,
+  // this effect fires and the UI updates automatically (like ChatGPT)
   useEffect(() => {
-    if (isLoading || isGeneratingTitleRef.current) return; // Don't sync while streaming or generating title
-    
+    if (isGeneratingTitleRef.current) return;
+
     if (convexMessages) {
-      setMessages(
-        convexMessages.map((m) => ({
-          role: m.role,
-          content: m.content,
-          id: m._id,
-          images: m.images,
-        })),
-      );
+      if (isLoading && streamingAssistantIdRef.current) {
+        // While actively streaming via SSE, merge Convex data BUT keep the 
+        // live SSE content for the streaming message (SSE is faster than Convex polling)
+        setMessages((prev) => {
+          const streamingMsg = prev.find(
+            (m) => m.id === streamingAssistantIdRef.current
+          );
+          const convexMapped = convexMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            id: m._id,
+            images: m.images,
+            status: m.status as Message["status"],
+          }));
+          if (streamingMsg && streamingMsg.content.length > 0) {
+            // Use our live SSE content if it's ahead of Convex
+            return convexMapped.map((m) =>
+              m.id === streamingAssistantIdRef.current &&
+              streamingMsg.content.length > (m.content?.length || 0)
+                ? { ...streamingMsg }
+                : m
+            );
+          }
+          return convexMapped;
+        });
+      } else {
+        // Not streaming — fully sync from Convex (this handles refresh/load)
+        setMessages(
+          convexMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            id: m._id,
+            images: m.images,
+            status: m.status as Message["status"],
+          })),
+        );
+      }
     } else if (!conversationId) {
       setMessages([]);
     }
@@ -84,7 +118,6 @@ export function useChat(conversationId: Id<"conversations"> | null) {
       } catch {
         // Silently fail - title will remain "New Chat"
       } finally {
-        // Small delay to ensure title update completes before allowing sync
         setTimeout(() => {
           isGeneratingTitleRef.current = false;
         }, 100);
@@ -104,12 +137,11 @@ export function useChat(conversationId: Id<"conversations"> | null) {
 
       setIsLoading(true);
       let chatId = activeConversationId;
-      let uploadedImages = [];
+      let uploadedImages: Array<{ path: string; url: string; originalName: string }> = [];
 
       // 1. Upload images first if any
       if (attachments.length > 0) {
         try {
-          // Prepare payload needs only name and data
           const uploadPayload = attachments.map(att => ({
             name: att.name,
             type: att.type,
@@ -125,10 +157,10 @@ export function useChat(conversationId: Id<"conversations"> | null) {
           if (uploadRes.ok) {
             const data = await uploadRes.json();
             if (data.success) {
-              uploadedImages = data.uploadedImages; // Contains path, url, originalName
+              uploadedImages = data.uploadedImages;
             }
           } else {
-             console.error("Failed to upload images");
+            console.error("Failed to upload images");
           }
         } catch (err) {
           console.error("Image upload error:", err);
@@ -142,52 +174,82 @@ export function useChat(conversationId: Id<"conversations"> | null) {
         setActiveConversationId(chatId);
       }
 
-      // 3. Add user message to UI immediately for feedback
-      const userMsgId = `temp_user_${Date.now()}`;
-      // Show images in the UI using base64 data
-      const imageDataUrls = attachments.map(att => `data:${att.type};base64,${att.data}`);
-      const userMessage: Message = { 
-        role: "user", 
-        content, 
-        id: userMsgId,
-        images: imageDataUrls.length > 0 ? imageDataUrls : undefined
-      };
-      setMessages((prev) => [...prev, userMessage]);
-
-      // 4. Check if API key is available
+      // 3. Check if API key is available
       if (!settings?.anthropicApiKey) {
         const errorMsg: Message = {
           role: "assistant",
           content: "⚠️ Anthropic API key not found. Please add your API key in Settings to use the chat.",
           id: `error_${Date.now()}`,
+          status: "error",
         };
         setMessages((prev) => [...prev, errorMsg]);
         setIsLoading(false);
         return chatId;
       }
 
-      // 5. Prepare assistant placeholder
-      const assistantMsgId = `temp_assistant_${Date.now()}`;
+      // 4. SAVE USER MESSAGE TO CONVEX IMMEDIATELY
+      const imageUrls = uploadedImages.map((img) => img.url);
+      const imageDataUrls = attachments.map(att => `data:${att.type};base64,${att.data}`);
+
+      let userMsgId: Id<"messages"> | undefined;
+      if (chatId) {
+        userMsgId = await sendMessageMutation({
+          conversationId: chatId,
+          role: "user",
+          content,
+          images: imageUrls.length > 0 ? imageUrls : undefined,
+          status: "complete",
+        });
+      }
+
+      // Add user message to UI
+      const userMessage: Message = {
+        role: "user",
+        content,
+        id: userMsgId || `temp_user_${Date.now()}`,
+        images: imageDataUrls.length > 0 ? imageDataUrls : undefined,
+        status: "complete",
+      };
+      setMessages((prev) => [...prev, userMessage]);
+
+      // 5. CREATE EMPTY ASSISTANT MESSAGE IN CONVEX (status: streaming)
+      let assistantConvexId: Id<"messages"> | undefined;
+      if (chatId) {
+        assistantConvexId = await sendMessageMutation({
+          conversationId: chatId,
+          role: "assistant",
+          content: "",
+          status: "streaming",
+        });
+        streamingAssistantIdRef.current = assistantConvexId || null;
+      }
+
+      // Add assistant placeholder to UI
+      const assistantMsgId = assistantConvexId || `temp_assistant_${Date.now()}`;
       const assistantMessage: Message = {
         role: "assistant",
         content: "",
         id: assistantMsgId,
+        status: "streaming",
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
       try {
         abortControllerRef.current = new AbortController();
+        
+        // 6. START SSE STREAM — pass assistantMessageId so server can update Convex directly
         const response = await fetch(`${API_URL}/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: content,
-            images: uploadedImages, // Send uploaded image objects (with paths) instead of base64
+            images: uploadedImages,
             chatId,
             userId: licenseKey,
             provider,
             model,
-            anthropicApiKey: settings?.anthropicApiKey, // Send user's API key
+            anthropicApiKey: settings?.anthropicApiKey,
+            assistantMessageId: assistantConvexId, // Server uses this to update Convex
           }),
           signal: abortControllerRef.current.signal,
         });
@@ -214,6 +276,7 @@ export function useChat(conversationId: Id<"conversations"> | null) {
                 const data = JSON.parse(line.slice(6));
                 if (data.type === "text") {
                   fullAssistantContent += data.content;
+                  // Update UI immediately via SSE (faster than Convex polling)
                   setMessages((prev) =>
                     prev.map((msg) =>
                       msg.id === assistantMsgId
@@ -227,45 +290,44 @@ export function useChat(conversationId: Id<"conversations"> | null) {
           }
         }
 
-        // 5. Persistence: Save to Convex with image metadata
-        if (chatId) {
-          // Store just the URLs or paths in Convex
-          const imageUrls = uploadedImages.map((img: { url: string }) => img.url);
+        // Stream finished — update UI status
+        // (Convex is already updated by the server, useQuery will sync)
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? { ...msg, content: fullAssistantContent, status: "complete" }
+              : msg,
+          ),
+        );
 
-          await sendMessageMutation({
-            conversationId: chatId,
-            role: "user",
-            content,
-            images: imageUrls.length > 0 ? imageUrls : undefined,
-          });
-          
-          await sendMessageMutation({
-            conversationId: chatId,
-            role: "assistant",
-            content: fullAssistantContent,
-          });
-        }
-
-        // 6. Generate AI title for new conversations
+        // 7. Generate AI title for new conversations
         if (isNewConversation && chatId) {
           generateAITitle(content, chatId, settings?.anthropicApiKey);
         }
       } catch (error) {
         console.error("Chat error:", error);
-        // Show error message to user
-        const errorMsg: Message = {
-          role: "assistant",
-          content: `❌ Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
-          id: `error_${Date.now()}`,
-        };
-        setMessages((prev) => [...prev, errorMsg]);
+
+        const isAborted = error instanceof DOMException && error.name === "AbortError";
+
+        if (!isAborted) {
+          // Show error message for real errors
+          // Note: if user refreshed, the server continues generating and saves to Convex
+          const errorMsg: Message = {
+            role: "assistant",
+            content: `❌ Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+            id: `error_${Date.now()}`,
+            status: "error",
+          };
+          setMessages((prev) => [...prev, errorMsg]);
+        }
       } finally {
         setIsLoading(false);
         abortControllerRef.current = null;
+        streamingAssistantIdRef.current = null;
       }
       return chatId;
     },
-    [activeConversationId, user, licenseKey, createConversation, sendMessageMutation, generateAITitle],
+    [activeConversationId, user, licenseKey, createConversation, sendMessageMutation, generateAITitle, settings],
   );
 
   const stopQuery = useCallback(async () => {
