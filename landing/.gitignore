@@ -19,11 +19,6 @@
 
 # production
 /build
-/dist
-
-# electron build
-dist/
-_build/
 
 # misc
 .DS_Store
@@ -44,10 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Markdown files
-*.md
-
-# Specific files
-withskills
-
