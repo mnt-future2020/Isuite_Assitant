@@ -4,16 +4,20 @@ import { v } from "convex/values";
 export default defineSchema({
   // License keys for desktop app authentication
   licenses: defineTable({
-    licenseKey: v.string(), // Unique license key (XXXX-XXXX-XXXX-XXXX)
-    email: v.string(), // User email
-    plan: v.string(), // "free", "pro", "enterprise"
-    isActive: v.boolean(),
+    licenseKey: v.string(),           // Unique license key (XXXX-XXXX-XXXX-XXXX)
+    email: v.string(),                // User email (tied to this key)
+    plan: v.string(),                 // "20days", "30days", "90days", "365days"
+    isActive: v.boolean(),            // Can be deactivated by admin
     createdAt: v.number(),
-    expiresAt: v.optional(v.number()), // Optional expiry date
-    machineId: v.optional(v.string()), // For single-device licensing
+    expiresAt: v.number(),            // Timestamp when subscription expires
+    durationDays: v.optional(v.number()),         // 20, 30, 90, or 365 (optional for legacy records)
+    activeSessionId: v.optional(v.string()), // Current active session UUID (null = logged out)
+    paymentId: v.optional(v.string()),       // Razorpay payment ID for reference
+    lastActiveAt: v.optional(v.number()),    // Last activity timestamp
   })
     .index("by_key", ["licenseKey"])
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    .index("by_paymentId", ["paymentId"]),
 
   users: defineTable({
     name: v.optional(v.string()),
@@ -39,14 +43,14 @@ export default defineSchema({
       type: v.string(),
       isImage: v.boolean(),
     }))), // Array of file attachments with metadata
-    status: v.optional(v.union(v.literal("streaming"), v.literal("complete"), v.literal("error"))), // Message status for persistence
-    embedding: v.optional(v.array(v.float64())), // For Vector Search
+    status: v.optional(v.union(v.literal("streaming"), v.literal("complete"), v.literal("error"))),
+    embedding: v.optional(v.array(v.float64())),
     createdAt: v.number(),
   })
     .index("by_conversationId", ["conversationId"])
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
-      dimensions: 1536, // Standard for OpenAI embeddings
+      dimensions: 1536,
       filterFields: ["conversationId"],
     }),
 
@@ -55,6 +59,6 @@ export default defineSchema({
     theme: v.string(),
     preferredModel: v.string(),
     notificationsEnabled: v.boolean(),
-    anthropicApiKey: v.optional(v.string()), // User's own Anthropic API key
+    anthropicApiKey: v.optional(v.string()),
   }).index("by_userId", ["userId"]),
 });

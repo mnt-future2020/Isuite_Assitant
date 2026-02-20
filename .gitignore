@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Specific files
 withskills
+
+# Landing page (separate project)
+landing/

@@ -1,18 +1,42 @@
 "use client";
 
 import { ConvexReactClient, ConvexProvider, useMutation, useQuery } from "convex/react";
-import { ReactNode, createContext, useContext, useState, useEffect } from "react";
+import { ReactNode, createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../../convex/_generated/api";
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
+// ============================================================
+// Session ID Management
+// ============================================================
+
+function getOrCreateSessionId(): string {
+  const STORAGE_KEY = "isuite_session_id";
+  let sessionId = localStorage.getItem(STORAGE_KEY);
+  if (!sessionId) {
+    // Generate a UUID v4
+    sessionId = crypto.randomUUID();
+    localStorage.setItem(STORAGE_KEY, sessionId);
+  }
+  return sessionId;
+}
+
+function clearSessionId(): void {
+  localStorage.removeItem("isuite_session_id");
+}
+
+// ============================================================
 // License Auth Context
+// ============================================================
+
 type LicenseUser = {
   id: string;
   email: string;
   name?: string;
   plan: string;
+  durationDays?: number;
   expiresAt?: number;
+  daysRemaining?: number;
 } | null;
 
 type LicenseAuthContextType = {
@@ -20,8 +44,11 @@ type LicenseAuthContextType = {
   licenseKey: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  daysRemaining: number | null;
+  isExpired: boolean;
+  isSessionConflict: boolean;
   activate: (key: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const LicenseAuthContext = createContext<LicenseAuthContextType | null>(null);
@@ -34,75 +61,154 @@ export function useLicenseAuth() {
   return context;
 }
 
-// Inner provider that uses Convex hooks
+// ============================================================
+// Inner Provider with Convex hooks
+// ============================================================
+
 function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
-  const [licenseKey, setLicenseKey] = useState<string | null>(null);
+  // Initialize from localStorage synchronously (avoids setState-in-effect)
+  const [licenseKey, setLicenseKey] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("isuite_license_key");
+    }
+    return null;
+  });
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("isuite_license_key")) {
+      return getOrCreateSessionId();
+    }
+    return null;
+  });
   const [user, setUser] = useState<LicenseUser>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !!localStorage.getItem("isuite_license_key");
+    }
+    return true;
+  });
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
+  const [isExpired, setIsExpired] = useState(false);
+  const [isSessionConflict, setIsSessionConflict] = useState(false);
 
   const activateMutation = useMutation(api.licenses.activate);
+  const logoutMutation = useMutation(api.licenses.logout);
+  const heartbeatMutation = useMutation(api.licenses.heartbeat);
+
   const userQuery = useQuery(
     api.licenses.getUserByLicense,
-    licenseKey ? { licenseKey } : "skip"
+    licenseKey ? { licenseKey, sessionId: sessionId || undefined } : "skip"
   );
-
-  // Load license key from localStorage on mount
-  useEffect(() => {
-    const storedKey = localStorage.getItem("isuite_license_key");
-    if (storedKey) {
-      setLicenseKey(storedKey);
-    } else {
-      setIsLoading(false);
-    }
-  }, []);
 
   // Update user when query returns
   useEffect(() => {
     if (licenseKey && userQuery !== undefined) {
-      if (userQuery) {
+      if (userQuery === null) {
+        // Invalid license — clear it
+        localStorage.removeItem("isuite_license_key");
+        clearSessionId();
+        setLicenseKey(null);
+        setSessionId(null);
+        setUser(null);
+        setIsExpired(false);
+        setIsSessionConflict(false);
+      } else if ("expired" in userQuery && userQuery.expired) {
+        // Subscription expired
+        setIsExpired(true);
+        setUser(null);
+        setDaysRemaining(0);
+      } else if ("sessionConflict" in userQuery && userQuery.sessionConflict) {
+        // Key is active on another device
+        setIsSessionConflict(true);
+        setUser(null);
+      } else if ("_id" in userQuery) {
+        // Valid user
         setUser({
           id: userQuery._id,
           email: userQuery.email,
           name: userQuery.name,
           plan: userQuery.plan,
+          durationDays: userQuery.durationDays,
           expiresAt: userQuery.expiresAt,
+          daysRemaining: userQuery.daysRemaining,
         });
-      } else {
-        // Invalid license - clear it
-        localStorage.removeItem("isuite_license_key");
-        setLicenseKey(null);
-        setUser(null);
+        setDaysRemaining(userQuery.daysRemaining ?? null);
+        setIsExpired(false);
+        setIsSessionConflict(false);
       }
       setIsLoading(false);
     }
   }, [userQuery, licenseKey]);
 
-  const activate = async (key: string): Promise<{ success: boolean; error?: string }> => {
+  // Heartbeat — update last active every 5 minutes
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (licenseKey && sessionId && user) {
+      // Send immediate heartbeat
+      heartbeatMutation({ licenseKey, sessionId }).catch(() => {});
+
+      // Set up interval
+      heartbeatRef.current = setInterval(() => {
+        heartbeatMutation({ licenseKey, sessionId }).catch(() => {});
+      }, 5 * 60 * 1000); // Every 5 minutes
+
+      return () => {
+        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      };
+    }
+  }, [licenseKey, sessionId, user, heartbeatMutation]);
+
+  // Activate — generates sessionId, locks the session server-side
+  const activate = useCallback(async (key: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const result = await activateMutation({ licenseKey: key });
+      const sid = getOrCreateSessionId();
+      const result = await activateMutation({ licenseKey: key, sessionId: sid });
+
       if (result.success && result.user) {
         localStorage.setItem("isuite_license_key", key);
         setLicenseKey(key);
+        setSessionId(sid);
         setUser({
           id: result.user.id,
           email: result.user.email,
           name: result.user.name,
           plan: result.plan,
+          durationDays: result.durationDays,
           expiresAt: result.expiresAt,
+          daysRemaining: result.daysRemaining,
         });
+        setDaysRemaining(result.daysRemaining ?? null);
+        setIsExpired(false);
+        setIsSessionConflict(false);
         return { success: true };
       }
       return { success: false, error: result.error || "Activation failed" };
-    } catch (error) {
-      return { success: false, error: "Failed to validate license" };
+    } catch (err) {
+      console.error("License activation error:", err);
+      const message = err instanceof Error ? err.message : "Failed to validate license. Please try again.";
+      return { success: false, error: message };
     }
-  };
+  }, [activateMutation]);
 
-  const logout = () => {
+  // Logout — clears session server-side first, then local state
+  const logout = useCallback(async () => {
+    if (licenseKey && sessionId) {
+      try {
+        await logoutMutation({ licenseKey, sessionId });
+      } catch (e) {
+        // Still proceed with local logout even if server call fails
+        console.error("Server logout failed:", e);
+      }
+    }
     localStorage.removeItem("isuite_license_key");
+    clearSessionId();
     setLicenseKey(null);
+    setSessionId(null);
     setUser(null);
-  };
+    setDaysRemaining(null);
+    setIsExpired(false);
+    setIsSessionConflict(false);
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+  }, [licenseKey, sessionId, logoutMutation]);
 
   return (
     <LicenseAuthContext.Provider
@@ -111,6 +217,9 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
         licenseKey,
         isLoading,
         isAuthenticated: !!user,
+        daysRemaining,
+        isExpired,
+        isSessionConflict,
         activate,
         logout,
       }}
@@ -120,6 +229,10 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
   );
 }
 
+// ============================================================
+// Provider & Utility Components
+// ============================================================
+
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
   return (
     <ConvexProvider client={convex}>
@@ -128,7 +241,6 @@ export function ConvexClientProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Utility components to replace Clerk's Authenticated/Unauthenticated
 export function LicenseAuthenticated({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useLicenseAuth();
   if (isLoading || !isAuthenticated) return null;

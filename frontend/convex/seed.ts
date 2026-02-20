@@ -1,12 +1,11 @@
 import { mutation } from "./_generated/server";
 
-// Seed function to create initial license keys
+// Seed function to create initial license keys for testing
 // Run this from Convex dashboard: npx convex run seed:createTestLicense
 
 export const createTestLicense = mutation({
   args: {},
   handler: async (ctx) => {
-    // Generate unique license key (XXXX-XXXX-XXXX-XXXX format)
     const generateKey = () => {
       const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
       const segment = () =>
@@ -18,31 +17,35 @@ export const createTestLicense = mutation({
     };
 
     const licenseKey = generateKey();
+    const durationDays = 30;
+    const now = Date.now();
 
-    // Create test license
     await ctx.db.insert("licenses", {
       licenseKey,
       email: "test@isuiteassistant.com",
-      plan: "pro",
+      plan: "30days",
       isActive: true,
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year from now
+      createdAt: now,
+      expiresAt: now + durationDays * 24 * 60 * 60 * 1000,
+      durationDays,
     });
 
     console.log("✅ Test license created!");
     console.log("📋 License Key:", licenseKey);
     console.log("📧 Email: test@isuiteassistant.com");
-    console.log("📦 Plan: pro");
+    console.log("📦 Plan: 30days");
+    console.log("⏰ Expires:", new Date(now + durationDays * 24 * 60 * 60 * 1000).toISOString());
 
     return {
       licenseKey,
       email: "test@isuiteassistant.com",
-      plan: "pro",
+      plan: "30days",
+      durationDays,
     };
   },
 });
 
-// Create multiple licenses for testing
+// Create multiple licenses for testing all plan types
 export const seedMultipleLicenses = mutation({
   args: {},
   handler: async (ctx) => {
@@ -57,12 +60,14 @@ export const seedMultipleLicenses = mutation({
     };
 
     const testUsers = [
-      { email: "admin@isuiteassistant.com", plan: "enterprise" },
-      { email: "pro@isuiteassistant.com", plan: "pro" },
-      { email: "free@isuiteassistant.com", plan: "free" },
+      { email: "admin@isuiteassistant.com", plan: "365days", durationDays: 365 },
+      { email: "pro@isuiteassistant.com", plan: "90days", durationDays: 90 },
+      { email: "monthly@isuiteassistant.com", plan: "30days", durationDays: 30 },
+      { email: "starter@isuiteassistant.com", plan: "20days", durationDays: 20 },
     ];
 
     const results = [];
+    const now = Date.now();
 
     for (const user of testUsers) {
       const licenseKey = generateKey();
@@ -71,14 +76,16 @@ export const seedMultipleLicenses = mutation({
         email: user.email,
         plan: user.plan,
         isActive: true,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
+        createdAt: now,
+        expiresAt: now + user.durationDays * 24 * 60 * 60 * 1000,
+        durationDays: user.durationDays,
       });
 
       results.push({
         licenseKey,
         email: user.email,
         plan: user.plan,
+        durationDays: user.durationDays,
       });
 
       console.log(`✅ Created: ${user.email} (${user.plan}) - ${licenseKey}`);

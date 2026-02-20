@@ -18,6 +18,8 @@ import {
   X,
   MessageSquare,
   Trash2,
+  AlertTriangle,
+  Monitor,
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -81,9 +83,32 @@ function LicenseKeyInput() {
 
 // User License Card Component - smooth transitions for collapsed/expanded states
 function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
-  const { user, logout } = useLicenseAuth();
+  const { user, logout, daysRemaining } = useLicenseAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   if (!user) return null;
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    setIsLoggingOut(false);
+  };
+
+  // Days remaining color
+  const getDaysColor = () => {
+    if (!daysRemaining || daysRemaining <= 3) return "text-red-400";
+    if (daysRemaining <= 7) return "text-yellow-400";
+    return "text-emerald-400";
+  };
+
+  // Plan display name
+  const getPlanLabel = () => {
+    if (user.durationDays === 365) return "Annual";
+    if (user.durationDays === 90) return "Quarterly";
+    if (user.durationDays === 30) return "Monthly";
+    if (user.durationDays === 20) return "Starter";
+    return user.plan;
+  };
 
   return (
     <div className={cn(
@@ -115,21 +140,30 @@ function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
           <span className="text-sm font-medium text-foreground truncate">
             {user.name || user.email}
           </span>
-          <span className="text-xs text-muted-foreground capitalize truncate">
-            {user.plan} Plan
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground capitalize">
+              {getPlanLabel()}
+            </span>
+            {daysRemaining !== null && (
+              <span className={cn("text-xs font-medium", getDaysColor())}>
+                · {daysRemaining}d left
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Logout Button */}
         <button
-          onClick={logout}
+          onClick={handleLogout}
+          disabled={isLoggingOut}
           className={cn(
             "text-muted-foreground hover:text-destructive transition-all duration-200",
-            isCollapsed ? "p-0" : "p-1"
+            isCollapsed ? "p-0" : "p-1",
+            isLoggingOut && "opacity-50 cursor-not-allowed"
           )}
           title="Sign out"
         >
-          <LogOut size={16} />
+          <LogOut size={16} className={isLoggingOut ? "animate-spin" : ""} />
         </button>
       </div>
     </div>
@@ -140,9 +174,14 @@ function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
 export default function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { licenseKey } = useLicenseAuth();
+  const { licenseKey, isExpired, isSessionConflict, logout } = useLicenseAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Force logout handler for expired/conflicted states
+  const handleForceLogout = async () => {
+    await logout();
+  };
   
   const conversations = useQuery(api.conversations.list, licenseKey ? { licenseKey } : "skip") || [];
   const deleteConversation = useMutation(api.conversations.remove);
@@ -355,11 +394,52 @@ export default function AppSidebar() {
 
         {/* Footer / License */}
         <div className="mt-auto">
-          {!licenseKey ? (
-            <LicenseKeyInput />
-          ) : (
-            <UserLicenseCard isCollapsed={isSidebarCollapsed} />
-          )}
+          {(() => {
+            if (isExpired) {
+              return (
+                <div className="p-4 border-t border-border space-y-3">
+                  <div className="flex items-center gap-2 text-yellow-500">
+                    <AlertTriangle size={16} />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Subscription Expired</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Your subscription has expired. Please renew to continue using iSuite.
+                  </p>
+                  <button
+                    onClick={handleForceLogout}
+                    className="w-full flex items-center justify-center gap-2 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-all duration-200"
+                  >
+                    <Key size={14} />
+                    <span>Enter New Key</span>
+                  </button>
+                </div>
+              );
+            }
+            if (isSessionConflict) {
+              return (
+                <div className="p-4 border-t border-border space-y-3">
+                  <div className="flex items-center gap-2 text-red-400">
+                    <Monitor size={16} />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Active Elsewhere</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This license key is currently active on another device. Please logout from that device first.
+                  </p>
+                  <button
+                    onClick={handleForceLogout}
+                    className="w-full flex items-center justify-center gap-2 py-2 border border-border text-foreground rounded-md text-sm font-medium hover:bg-secondary transition-all duration-200"
+                  >
+                    <Key size={14} />
+                    <span>Use Different Key</span>
+                  </button>
+                </div>
+              );
+            }
+            if (!licenseKey) {
+              return <LicenseKeyInput />;
+            }
+            return <UserLicenseCard isCollapsed={isSidebarCollapsed} />;
+          })()}
         </div>
       </aside>
     </>
