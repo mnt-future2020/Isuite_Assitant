@@ -71,16 +71,21 @@ function HomeContent() {
     }
     if (!input.trim() && attachments.length === 0) return;
     
+    // Capture current values before clearing
+    const currentInput = input;
+    const currentAttachments = [...attachments];
+
+    // Clear input and attachments IMMEDIATELY (like ChatGPT)
+    setInput("");
+    setAttachments([]);
+
     // Pass preferred model from settings
     const preferredModel = settings?.preferredModel || "claude-3-5-sonnet-latest";
-    const newChatId = await sendMessage(input, "claude", preferredModel, attachments);
+    const newChatId = await sendMessage(currentInput, "claude", preferredModel, currentAttachments);
     
     if (newChatId && !selectedConversationId) {
       router.push(`/?chatId=${newChatId}`);
     }
-    
-    setInput("");
-    setAttachments([]);
   };
 
   const startNewChat = () => {
