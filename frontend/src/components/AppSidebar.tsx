@@ -85,6 +85,7 @@ function LicenseKeyInput() {
 function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
   const { user, logout, daysRemaining } = useLicenseAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   if (!user) return null;
 
@@ -92,6 +93,7 @@ function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
     setIsLoggingOut(true);
     await logout();
     setIsLoggingOut(false);
+    setShowLogoutModal(false);
   };
 
   // Days remaining color
@@ -154,7 +156,7 @@ function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
 
         {/* Logout Button */}
         <button
-          onClick={handleLogout}
+          onClick={() => setShowLogoutModal(true)}
           disabled={isLoggingOut}
           className={cn(
             "text-muted-foreground hover:text-destructive transition-all duration-200",
@@ -165,6 +167,38 @@ function UserLicenseCard({ isCollapsed }: { isCollapsed: boolean }) {
         >
           <LogOut size={16} className={isLoggingOut ? "animate-spin" : ""} />
         </button>
+
+        {/* Logout Confirmation Modal */}
+        {showLogoutModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-sm bg-background border border-border rounded-lg shadow-lg p-6 animate-in zoom-in-95 duration-200 mx-4">
+              <div className="flex flex-col space-y-2 text-center sm:text-left">
+                <h3 className="text-lg font-semibold text-foreground">
+                  Sign Out?
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Are you sure you want to sign out? You will need your license key to sign back in.
+                </p>
+              </div>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
+                <button
+                  onClick={() => setShowLogoutModal(false)}
+                  disabled={isLoggingOut}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+                >
+                  {isLoggingOut ? "Signing Out..." : "Sign Out"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

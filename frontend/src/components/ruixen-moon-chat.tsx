@@ -12,14 +12,12 @@ import {
   Paperclip,
   PlusIcon,
   Code2,
-  Palette,
   Menu,
   Layers,
   X,
   Pencil,
   BarChart2,
   Zap,
-  BookOpen,
   AlertCircle,
   FileText,
   File,
@@ -858,39 +856,39 @@ export default function RuixenMoonChat({
           {/* Quick Actions */}
           <div className="flex items-center justify-center flex-wrap gap-2 mt-6">
             <QuickAction
+              icon={<FileText className="w-3.5 h-3.5" />}
+              label="Summarize text"
+              prompt="Please summarize the key points from this document or text: [paste text or attach file]"
+              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
+            />
+            <QuickAction
               icon={<Code2 className="w-3.5 h-3.5" />}
-              label="Build an app"
-              prompt="Create a full web app for a food-based restaurant with a menu, ordering system, and contact page. Include HTML, CSS, and JavaScript."
-              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
-            />
-            <QuickAction
-              icon={<Palette className="w-3.5 h-3.5" />}
-              label="Design a UI"
-              prompt="Design a modern, clean landing page UI for a SaaS productivity tool. Describe the layout, color scheme, typography, and key sections."
-              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
-            />
-            <QuickAction
-              icon={<BookOpen className="w-3.5 h-3.5" />}
-              label="Plan a project"
-              prompt="Create a detailed project plan for launching a mobile app in 3 months. Include milestones, tasks, team roles, and a timeline."
-              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
-            />
-            <QuickAction
-              icon={<BarChart2 className="w-3.5 h-3.5" />}
-              label="Analyze data"
-              prompt="Analyze the following sales data and give me key insights, trends, and recommendations: [paste your data here]"
+              label="Explain code"
+              prompt="Please explain what this code snippet does and suggest any improvements: [paste code here]"
               onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
             />
             <QuickAction
               icon={<Pencil className="w-3.5 h-3.5" />}
-              label="Write content"
-              prompt="Write a professional blog post about the benefits of AI in modern businesses. Make it engaging, SEO-friendly, and around 800 words."
+              label="Draft an email"
+              prompt="Draft a brief, professional email to my team about our recent project progress."
               onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
             />
             <QuickAction
               icon={<Zap className="w-3.5 h-3.5" />}
-              label="Connect an app"
-              prompt="Help me connect my Gmail and Slack so that every important email I receive automatically sends a notification to my Slack channel."
+              label="Check schedule"
+              prompt="Can you check my connected calendar and tell me what meetings I have today?"
+              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
+            />
+            <QuickAction
+              icon={<Layers className="w-3.5 h-3.5" />}
+              label="Create a folder"
+              prompt="Please create a new local folder on my desktop for my next project."
+              onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
+            />
+            <QuickAction
+              icon={<BarChart2 className="w-3.5 h-3.5" />}
+              label="Format data"
+              prompt="Format the following raw data into a clean, easy-to-read markdown table: [paste data here]"
               onSelect={(p) => { setInput(p); textareaRef.current?.focus(); }}
             />
           </div>
