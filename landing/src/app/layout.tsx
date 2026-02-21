@@ -24,6 +24,37 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "iSuite — Intelligent Desktop Companion",
   description: "Transform your workflow with local AI, 100+ integrations, and powerful automation. Secure, private, and always available.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://isuiteassistant.com'),
+  openGraph: {
+    title: "iSuite — Intelligent Desktop Companion",
+    description: "Transform your workflow with local AI, 100+ integrations, and powerful automation.",
+    url: "/",
+    siteName: "iSuite",
+    images: [
+      {
+        url: "/og-image.jpg", // Placeholder for actual brand image
+        width: 1200,
+        height: 630,
+        alt: "iSuite Desktop Assistant",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "iSuite — Intelligent Desktop Companion",
+    description: "Your fully integrated desktop neural layer.",
+    creator: "@isuiteassistant",
+  },
+};
+
+export const viewport = {
+  themeColor: "#0a0a0a",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1, // Prevents input zoom on mobile browsers for better app feel
 };
 
 export default function RootLayout({

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,8 +75,18 @@ export async function POST(req: NextRequest) {
     doc.setFont("helvetica", "bold");
     
     // Header
+    let logoOffset = 0;
+    try {
+      const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+      const logoBase64 = fs.readFileSync(logoPath, 'base64');
+      doc.addImage(`data:image/png;base64,${logoBase64}`, 'PNG', 50, 60, 24, 24);
+      logoOffset = 34; // Shift text right to make room for logo
+    } catch (err) {
+      console.error("Could not load logo for PDF:", err);
+    }
+    
     doc.setFontSize(24);
-    doc.text('iSuite Assistant Inc.', 50, 80);
+    doc.text('iSuite Assistant Inc.', 50 + logoOffset, 80);
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
@@ -234,7 +246,10 @@ export async function POST(req: NextRequest) {
         <body>
           <div class="container">
             <div class="card">
-              <div class="logo">i<span>Suite</span></div>
+              <div class="logo">
+                <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'https://isuiteassistant.com'}/logo.png" width="48" height="48" alt="iSuite Logo" style="vertical-align: middle; margin-right: 12px; border-radius: 8px; display: inline-block;" />
+                i<span>Suite</span>
+              </div>
               <h1>Your License Key is Ready! 🎉</h1>
               <p class="subtitle">Thank you for choosing iSuite Assistant.</p>
 

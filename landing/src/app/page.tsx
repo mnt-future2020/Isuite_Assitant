@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Script from "next/script";
 import { Check, Terminal, Cpu, Shield, ArrowRight, Code, Layers, Download } from "lucide-react";
 import Cursor from "../components/Cursor";
 
@@ -8,6 +9,7 @@ import Cursor from "../components/Cursor";
 
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Razorpay: any;
   }
 }
@@ -85,17 +87,6 @@ export default function LandingPage() {
   const [selectedPlan, setSelectedPlan] = useState<(typeof PLANS)[0] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Load Razorpay Script
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
   // Handle Payment
   const handlePurchase = async (plan: (typeof PLANS)[0]) => {
     if (!email) {
@@ -105,10 +96,9 @@ export default function LandingPage() {
     }
 
     setIsProcessing(true);
-    const res = await loadRazorpayScript();
 
-    if (!res) {
-      alert("Razorpay SDK failed to load. Are you online?");
+    if (!window.Razorpay) {
+      alert("Razorpay SDK is still loading or failed to load. Please try again in a moment.");
       setIsProcessing(false);
       return;
     }
@@ -138,6 +128,7 @@ export default function LandingPage() {
         name: "iSuite AI",
         description: `${plan.name} License (${plan.duration})`,
         order_id: orderData.orderId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handler: async function (response: any) {
           // 3. Verify Payment
           try {
@@ -160,7 +151,7 @@ export default function LandingPage() {
             } else {
               alert(verifyData.error || "Payment verification failed.");
             }
-          } catch (error) {
+          } catch {
             alert("Payment verification failed. Please contact support.");
           }
         },
@@ -173,6 +164,7 @@ export default function LandingPage() {
 
       const paymentObject = new window.Razorpay(options);
       paymentObject.open();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
       alert(error.message || "Something went wrong.");
@@ -182,6 +174,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-black text-white relative selection:bg-white selection:text-black overflow-x-hidden">
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       <Cursor />
       {/* Texture Overlay */}
       <div className="bg-grain" />
