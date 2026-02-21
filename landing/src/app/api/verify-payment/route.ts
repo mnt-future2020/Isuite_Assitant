@@ -11,9 +11,6 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
-// Track processed payments for idempotency
-const processedPayments = new Set<string>();
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -27,14 +24,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: "Missing payment details" },
         { status: 400 }
-      );
-    }
-
-    // 1. Idempotency check — prevent duplicate license creation
-    if (processedPayments.has(razorpay_payment_id)) {
-      return NextResponse.json(
-        { success: false, error: "Payment already processed" },
-        { status: 409 }
       );
     }
 
@@ -74,10 +63,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Verify payment is actually captured/authorized on Razorpay
-    let paymentAmount = 0;
-    let paymentCurrency = "INR";
-    let paymentDate = new Date().toISOString();
-
     try {
       const payment = await razorpay.payments.fetch(razorpay_payment_id);
       if (payment.status !== "captured" && payment.status !== "authorized") {
@@ -86,56 +71,56 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-      
-      paymentAmount = Number(payment.amount);
-      paymentCurrency = payment.currency || "INR";
-      paymentDate = new Date((payment.created_at as number) * 1000).toISOString();
-      
     } catch (fetchError) {
       console.error("Failed to fetch payment status:", fetchError);
       // Continue — signature was valid (defense-in-depth)
     }
 
-    // 5. Mark payment as processed (idempotency)
-    processedPayments.add(razorpay_payment_id);
+    // --------------------------------------------------------------------------------
+    // ARCHITECTURE FIX: Prevent duplicate license creation & duplicate emails
+    // --------------------------------------------------------------------------------
+    // The webhook (`api/razorpay-webhook`) is the EXCLUSIVE creator of licenses and emails.
+    // This `verify-payment` endpoint simply polls Convex waiting for the Webhook to finish.
+    // This eliminates the race condition where both endpoints create a key simultaneously.
 
-    // Clean up after 24 hours
-    setTimeout(() => {
-      processedPayments.delete(razorpay_payment_id);
-    }, 24 * 60 * 60 * 1000);
-
-    // 6. Create license key in Convex
-    const result = await convex.mutation(anyApi.licenses.createLicense, {
-      email,
-      plan,
-      durationDays,
-      paymentId: razorpay_payment_id,
-    });
-
-    // 7. Send license key via email (best effort)
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/send-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          licenseKey: result.licenseKey,
-          plan,
-          durationDays,
-          amount: paymentAmount,
-          currency: paymentCurrency,
+    let createdLicense = null;
+    let attempts = 0;
+    const maxAttempts = 15; // 15 seconds polling max
+    
+    while (!createdLicense && attempts < maxAttempts) {
+      try {
+        createdLicense = await convex.query(anyApi.licenses.getLicenseByPaymentId, {
           paymentId: razorpay_payment_id,
-          date: paymentDate
-        }),
-      });
-    } catch (emailError) {
-      console.error("Email sending failed (non-blocking):", emailError);
+        });
+        
+        if (createdLicense) {
+          break;
+        }
+      } catch (err) {
+        console.error("Error polling for License:", err);
+      }
+      
+      attempts++;
+      // Wait 1 second before polling again
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    
+    // If webhook is deeply delayed, we might timeout pulling.
+    // By returning success anyway, the UI moves to the success screen, and the user 
+    // will get the email eventually when the webhook fires.
+    if (!createdLicense) {
+       console.log(`[Verify] Webhook is delayed/slow for ${razorpay_payment_id}. Redirecting to success without key rendering.`);
+       return NextResponse.json({
+         success: true,
+         licenseKey: "Pending - Check your Email shortly",
+         expiresAt: 0,
+       });
     }
 
     return NextResponse.json({
       success: true,
-      licenseKey: result.licenseKey,
-      expiresAt: result.expiresAt,
+      licenseKey: createdLicense.licenseKey,
+      expiresAt: createdLicense.expiresAt,
     });
   } catch (error) {
     console.error("Verify payment error:", error);

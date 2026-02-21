@@ -57,6 +57,9 @@ export async function POST(req: NextRequest) {
     // Identifiers
     const safePaymentId = paymentId || `TRX-${Date.now()}`;
     const invoiceNumber = `INV-${safePaymentId.replace(/^pay_/, '')}`;
+    
+    // Validate formatting 
+    const logoUrl = "https://cc24839ed0.imgdist.com/public/users/BeeFree/beefree-69596733-e56e-4991-b1c4-e2d5cd04ec0e/logo.png";
 
     await transporter.verify();
 
@@ -70,111 +73,152 @@ export async function POST(req: NextRequest) {
       format: 'a4'
     });
 
-    // --- PDF Content ---
-    // Colors and Fonts
-    doc.setFont("helvetica", "bold");
-    
-    // Header
-    let logoOffset = 0;
+    // --- Fetch Logo ---
+    let logoBase64: string | null = null;
     try {
+      // We explicitly read the local true PNG payload we extracted earlier to bypass the ICO signature issue
       const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-      const logoBase64 = fs.readFileSync(logoPath, 'base64');
-      doc.addImage(`data:image/png;base64,${logoBase64}`, 'PNG', 50, 60, 24, 24);
-      logoOffset = 34; // Shift text right to make room for logo
+      logoBase64 = fs.readFileSync(logoPath, 'base64');
     } catch (err) {
-      console.error("Could not load logo for PDF:", err);
+      console.error("Could not read local logo for PDF:", err);
+    }
+
+    // --- PDF Content ---
+    // Header Background
+    doc.setFillColor(252, 252, 253);
+    doc.rect(0, 0, 595, 140, 'F');
+    doc.setDrawColor(229, 231, 235);
+    doc.line(0, 140, 595, 140);
+
+    // Header Content
+    doc.setFont("helvetica", "bold");
+    let logoOffset = 0;
+    if (logoBase64) {
+      // Add Image: (imageData, format, x, y, width, height)
+      doc.addImage(`data:image/png;base64,${logoBase64}`, 'PNG', 50, 45, 40, 40);
+      logoOffset = 52; // Shift text right
     }
     
+    doc.setTextColor(17, 24, 39);
+    doc.setFontSize(22);
+    doc.text('iSuite Assistant Inc.', 50 + logoOffset, 62);
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(107, 114, 128);
+    doc.text('123 [Update Your Street Address]', 50 + logoOffset, 76);
+    doc.text('[Update Your City, Country]  |  GSTIN: [Update Your GST No]', 50 + logoOffset, 88);
+
+    // Title & Meta (Right aligned)
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(24);
-    doc.text('iSuite Assistant Inc.', 50 + logoOffset, 80);
+    doc.setTextColor(31, 41, 55);
+    doc.text('TAX INVOICE', 545, 62, { align: 'right' });
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(102, 102, 102);
-    doc.text('123 [Update Your Street Address]', 50, 105);
-    doc.text('[Update Your City, Country]', 50, 120);
-    doc.text('GSTIN: [Update Your GST No]', 50, 135);
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Invoice No: ${invoiceNumber}`, 545, 80, { align: 'right' });
+    doc.text(`Date of Issue: ${invoiceDate}`, 545, 95, { align: 'right' });
+    doc.text(`Transaction ID: ${safePaymentId}`, 545, 110, { align: 'right' });
 
-    // Title & Meta (Right aligned - roughly A4 width is 595pt)
+    // Billed To Section
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(0, 0, 0);
-    doc.text('TAX INVOICE', 545, 80, { align: 'right' });
-    
     doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(102, 102, 102);
-    doc.text(`Invoice No: ${invoiceNumber}`, 545, 105, { align: 'right' });
-    doc.text(`Date of Issue: ${invoiceDate}`, 545, 120, { align: 'right' });
-    doc.text(`Transaction ID: ${safePaymentId}`, 545, 135, { align: 'right' });
-
-    // Billed To
+    doc.setTextColor(156, 163, 175);
+    doc.text('BILLED TO', 50, 180);
+    
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text('Billed To:', 50, 190);
+    doc.setFontSize(14);
+    doc.setTextColor(17, 24, 39);
+    doc.text('Customer', 50, 200);
     
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(102, 102, 102);
-    doc.text('Customer', 50, 210);
-    doc.text(email, 50, 225);
+    doc.setFontSize(11);
+    doc.setTextColor(75, 85, 99);
+    doc.text(email, 50, 215);
 
-    // Table Header
-    const tableTop = 280;
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0, 0, 0);
-    doc.text('DESCRIPTION', 50, tableTop);
-    doc.text('AMOUNT', 545, tableTop, { align: 'right' });
+    // --- Beautiful Table ---
+    const tableTop = 270;
     
-    doc.setDrawColor(229, 229, 229);
-    doc.line(50, tableTop + 10, 545, tableTop + 10);
+    // Table Header Background
+    doc.setFillColor(249, 250, 251); 
+    doc.setDrawColor(229, 231, 235);
+    doc.rect(48, tableTop - 20, 499, 35, 'FD'); // Filled and Stroked
+    
+    // Table Headers
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    doc.text('ITEM DESCRIPTION', 60, tableTop + 2);
+    doc.text('AMOUNT', 535, tableTop + 2, { align: 'right' });
 
     // Table Body
-    const rowTop = tableTop + 35;
+    const rowTop = tableTop + 40;
+    
+    // Border sides
+    doc.line(48, tableTop + 15, 48, rowTop + 85);
+    doc.line(547, tableTop + 15, 547, rowTop + 85);
+    
+    // Content
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text('iSuite Assistant Subscription', 50, rowTop);
+    doc.setTextColor(17, 24, 39);
+    doc.text('iSuite Assistant Subscription', 60, rowTop);
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(102, 102, 102);
-    doc.text(`Plan: ${planLabel}`, 50, rowTop + 18);
-    doc.text(`Billing Period: ${invoiceDate} - ${endDateFormatted}`, 50, rowTop + 33);
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Plan: ${planLabel}`, 60, rowTop + 20);
+    doc.text(`Billing Period: ${invoiceDate} - ${endDateFormatted}`, 60, rowTop + 35);
     
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${displayCurrency} ${formattedTotal}`, 545, rowTop, { align: 'right' });
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(17, 24, 39);
+    doc.text(`${displayCurrency} ${formattedTotal}`, 535, rowTop, { align: 'right' });
 
-    doc.setDrawColor(229, 229, 229);
-    doc.line(50, rowTop + 60, 545, rowTop + 60);
+    // Bottom border of item section
+    doc.setDrawColor(229, 231, 235);
+    doc.line(48, rowTop + 65, 547, rowTop + 65);
 
-    // Calculations
-    const calcTop = rowTop + 90;
+    // Calculations Section
+    const calcTop = rowTop + 95;
+    
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(102, 102, 102);
-    doc.text('Subtotal', 420, calcTop, { align: 'right' });
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${displayCurrency} ${formattedSubtotal}`, 545, calcTop, { align: 'right' });
+    doc.setTextColor(75, 85, 99);
+    doc.text('Subtotal', 400, calcTop, { align: 'right' });
+    doc.setTextColor(17, 24, 39);
+    doc.text(`${displayCurrency} ${formattedSubtotal}`, 535, calcTop, { align: 'right' });
 
-    doc.setTextColor(102, 102, 102);
-    doc.text('GST (18%)', 420, calcTop + 20, { align: 'right' });
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${displayCurrency} ${formattedGst}`, 545, calcTop + 20, { align: 'right' });
+    doc.setTextColor(75, 85, 99);
+    doc.text('GST (18%)', 400, calcTop + 20, { align: 'right' });
+    doc.setTextColor(17, 24, 39);
+    doc.text(`${displayCurrency} ${formattedGst}`, 535, calcTop + 20, { align: 'right' });
 
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(1.5);
-    doc.line(350, calcTop + 35, 545, calcTop + 35);
+    // Total line inside box
+    doc.setDrawColor(229, 231, 235);
+    doc.setLineWidth(1);
+    doc.line(48, calcTop + 40, 547, calcTop + 40); // close content area before total
+
+    // Total Paid background
+    doc.setFillColor(249, 250, 251); 
+    doc.rect(48, calcTop + 40, 499, 50, 'F');
+    
+    // Outer border for calculation section
+    doc.line(48, rowTop + 65, 48, calcTop + 90); // Left side
+    doc.line(547, rowTop + 65, 547, calcTop + 90); // Right side
+    doc.line(48, calcTop + 90, 547, calcTop + 90); // Bottom side
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text('Total Paid', 420, calcTop + 60, { align: 'right' });
-    doc.text(`${displayCurrency} ${formattedTotal}`, 545, calcTop + 60, { align: 'right' });
+    doc.text('Total Paid', 400, calcTop + 72, { align: 'right' });
+    doc.text(`${displayCurrency} ${formattedTotal}`, 535, calcTop + 72, { align: 'right' });
 
     // Footer
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(153, 153, 153);
+    doc.setTextColor(156, 163, 175);
     doc.text(`This is a computer generated receipt for ${email}`, 297, 750, { align: 'center' });
-    doc.text(`© ${new Date().getFullYear()} iSuite Assistant. All rights reserved.`, 297, 765, { align: 'center' });
+    doc.text(`© ${new Date().getFullYear()} iSuite Assistant Inc. All rights reserved.`, 297, 765, { align: 'center' });
 
     // Convert to Buffer
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
@@ -247,8 +291,8 @@ export async function POST(req: NextRequest) {
           <div class="container">
             <div class="card">
               <div class="logo">
-                <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'https://isuiteassistant.com'}/logo.png" width="48" height="48" alt="iSuite Logo" style="vertical-align: middle; margin-right: 12px; border-radius: 8px; display: inline-block;" />
-                i<span>Suite</span>
+                <img src="${logoUrl}" width="48" height="48" alt="iSuite Logo" style="vertical-align: middle; margin-right: 12px; border-radius: 8px; display: inline-block;" />
+                <span style="vertical-align: middle;">i<span style="color: #6366f1;">Suite</span></span>
               </div>
               <h1>Your License Key is Ready! 🎉</h1>
               <p class="subtitle">Thank you for choosing iSuite Assistant.</p>

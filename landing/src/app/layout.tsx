@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono, Inter } from "next/font/google"; // New Fonts
+import Cursor from "@/components/Cursor";
 import "./globals.css";
 
 // Configure Fonts
@@ -67,6 +68,7 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} ${inter.variable} antialiased bg-black text-white selection:bg-white selection:text-black`}
       >
+        <Cursor />
         {children}
       </body>
     </html>

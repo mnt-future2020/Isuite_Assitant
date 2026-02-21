@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Script from "next/script";
 import { Check, Terminal, Cpu, Shield, ArrowRight, Code, Layers, Download } from "lucide-react";
-import Cursor from "../components/Cursor";
 
 // --- Types & Config ---
 
@@ -175,7 +174,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-black text-white relative selection:bg-white selection:text-black overflow-x-hidden">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-      <Cursor />
+      
       {/* Texture Overlay */}
       <div className="bg-grain" />
 
