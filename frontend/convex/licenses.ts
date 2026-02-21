@@ -361,3 +361,32 @@ export const getLicenseByPaymentId = query({
     };
   },
 });
+
+// ============================================================
+// QUERY: Get license by Email (for seamless renewals)
+// ============================================================
+
+export const getLicenseByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    // Note: If a user has multiple licenses for some reason (from old buys),
+    // we want to renew the most recently created one.
+    const licenses = await ctx.db
+      .query("licenses")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .collect();
+
+    if (licenses.length === 0) return null;
+
+    // Sort descending by createdAt to get the latest key
+    licenses.sort((a, b) => b.createdAt - a.createdAt);
+    const latestLicense = licenses[0];
+
+    return {
+      licenseKey: latestLicense.licenseKey,
+      email: latestLicense.email,
+      plan: latestLicense.plan,
+      expiresAt: latestLicense.expiresAt,
+    };
+  },
+});

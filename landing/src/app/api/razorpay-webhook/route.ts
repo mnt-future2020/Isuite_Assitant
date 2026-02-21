@@ -167,15 +167,39 @@ export async function POST(req: NextRequest) {
           console.log("[Webhook] Could not check existing license, proceeding with creation");
         }
 
-        // Create license
-        const result = await convex.mutation(anyApi.licenses.createLicense, {
-          email: orderData.email,
-          plan: orderData.plan,
-          durationDays: orderData.durationDays,
-          paymentId: orderData.paymentId,
-        });
+        // Check if user already has an existing license for this email
+        let activeLicenseKey = "";
+        try {
+          const existingLicense = await convex.query(anyApi.licenses.getLicenseByEmail, {
+            email: orderData.email,
+          });
 
-        console.log(`[Webhook] ✅ License created: ${result.licenseKey} for ${orderData.email} (${orderData.plan})`);
+          if (existingLicense) {
+            // RENEW SEAMLESSLY
+            console.log(`[Webhook] Found existing license for ${orderData.email}. Renewing seamlessly...`);
+            await convex.mutation(anyApi.licenses.renewLicense, {
+              licenseKey: existingLicense.licenseKey,
+              additionalDays: orderData.durationDays,
+              paymentId: orderData.paymentId,
+            });
+            activeLicenseKey = existingLicense.licenseKey;
+            console.log(`[Webhook] ✅ License seamlessly renewed: ${activeLicenseKey} for ${orderData.email}`);
+          } else {
+            // CREATE NEW LICENSE
+            console.log(`[Webhook] No existing license found for ${orderData.email}. Creating new...`);
+            const createResult = await convex.mutation(anyApi.licenses.createLicense, {
+              email: orderData.email,
+              plan: orderData.plan,
+              durationDays: orderData.durationDays,
+              paymentId: orderData.paymentId,
+            });
+            activeLicenseKey = createResult.licenseKey;
+            console.log(`[Webhook] ✅ New license created: ${activeLicenseKey} for ${orderData.email} (${orderData.plan})`);
+          }
+        } catch (error) {
+          console.error("[Webhook] Error during license provisioning:", error);
+          return NextResponse.json({ status: "error", message: "Failed to provision license" }, { status: 500 });
+        }
 
         // Send email (best-effort, non-blocking, Serverless-safe)
         after(() => {
@@ -184,7 +208,7 @@ export async function POST(req: NextRequest) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               email: orderData.email,
-              licenseKey: result.licenseKey,
+              licenseKey: activeLicenseKey,
               plan: orderData.plan,
               durationDays: orderData.durationDays,
               amount: orderData.amount,
