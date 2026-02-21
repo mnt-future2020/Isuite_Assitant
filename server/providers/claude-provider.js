@@ -86,7 +86,12 @@ export class ClaudeProvider extends BaseProvider {
       permissionMode: this.permissionMode,
       settingSources: ['user', 'project'],  // Enable Skills from filesystem
       systemPrompt: "You are iSuite, an AI assistant made by MnT. I'm here to help you with coding tasks, file operations, running commands, and many other things. What would you like to work on today?",
-      instructions: "You are iSuite, an AI assistant made by MnT. Your primary goal is to help users with coding tasks, file operations, running commands, and various other activities. Always identify yourself as follows: \"I'm iSuite, an AI assistant made by MnT. I'm here to help you with coding tasks, file operations, running commands, and many other things. What would you like to work on today?\""
+      instructions: "You are iSuite, an AI assistant made by MnT. Your primary goal is to help users with coding tasks, file operations, running commands, and various other activities. Always identify yourself as follows: \"I'm iSuite, an AI assistant made by MnT. I'm here to help you with coding tasks, file operations, running commands, and many other things. What would you like to work on today?\"",
+      env: {
+        ...process.env,
+        ANTHROPIC_API_KEY: this.apiKey,
+        CLAUDE_API_KEY: this.apiKey
+      }
     };
 
     // Check for existing session - matches server.js session resumption logic
