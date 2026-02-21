@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import crypto from "crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
@@ -176,9 +177,9 @@ export async function POST(req: NextRequest) {
 
         console.log(`[Webhook] ✅ License created: ${result.licenseKey} for ${orderData.email} (${orderData.plan})`);
 
-        // Send email (best-effort, non-blocking)
-        try {
-          await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/send-email`, {
+        // Send email (best-effort, non-blocking, Serverless-safe)
+        after(() => {
+          fetch(`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/send-email`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -191,10 +192,10 @@ export async function POST(req: NextRequest) {
               paymentId: orderData.paymentId,
               date: new Date().toISOString()
             }),
+          }).catch((emailError) => {
+            console.error("[Webhook] Email failed (non-blocking):", emailError);
           });
-        } catch (emailError) {
-          console.error("[Webhook] Email failed (non-blocking):", emailError);
-        }
+        });
 
         // Mark event as processed
         if (eventId) processedEventIds.add(eventId);
