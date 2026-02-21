@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import nodemailer from "nodemailer";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, licenseKey, plan, durationDays } = await req.json();
+    const { email, licenseKey, plan, durationDays, amount, currency, paymentId, date } = await req.json();
 
     if (!email || !licenseKey) {
       return NextResponse.json(
@@ -13,6 +11,17 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Initialize Nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: Number(process.env.SMTP_PORT) === 465, // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
 
     const planLabels: Record<string, string> = {
       "20days": "Starter (20 Days)",
@@ -22,11 +31,153 @@ export async function POST(req: NextRequest) {
     };
 
     const planLabel = planLabels[plan] || `${durationDays} Days`;
+    
+    // Financial formatting
+    const totalAmountNum = amount ? (amount / 100) : 0;
+    // Assuming the total includes an 18% GST out of the box. You can adjust this later.
+    const subtotalNum = totalAmountNum / 1.18;
+    const gstNum = totalAmountNum - subtotalNum;
 
-    await resend.emails.send({
-      from: "iSuite <noreply@isuiteassistant.com>",
-      to: [email],
-      subject: "🎉 Your iSuite License Key",
+    const formattedTotal = totalAmountNum.toFixed(2);
+    const formattedSubtotal = subtotalNum.toFixed(2);
+    const formattedGst = gstNum.toFixed(2);
+    
+    const displayCurrency = currency || "INR";
+    
+    // Date formats
+    const startDateObj = date ? new Date(date) : new Date();
+    const invoiceDate = startDateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    
+    // Calculate Billing Period End Date based on durationDays
+    const endDateObj = new Date(startDateObj.getTime() + (durationDays || 30) * 24 * 60 * 60 * 1000);
+    const endDateFormatted = endDateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+    // Identifiers
+    const safePaymentId = paymentId || `TRX-${Date.now()}`;
+    const invoiceNumber = `INV-${safePaymentId.replace(/^pay_/, '')}`;
+
+    await transporter.verify();
+
+    // Generate PDF invoice cleanly using jsPDF (works in Serverless/Edge runtimes)
+    // @ts-expect-error - Ignore type error if types module isn't loaded by tsconfig yet
+    const { jsPDF } = await import('jspdf');
+    // Using a reliable server-side oriented config
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4'
+    });
+
+    // --- PDF Content ---
+    // Colors and Fonts
+    doc.setFont("helvetica", "bold");
+    
+    // Header
+    doc.setFontSize(24);
+    doc.text('iSuite Assistant Inc.', 50, 80);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(102, 102, 102);
+    doc.text('123 [Update Your Street Address]', 50, 105);
+    doc.text('[Update Your City, Country]', 50, 120);
+    doc.text('GSTIN: [Update Your GST No]', 50, 135);
+
+    // Title & Meta (Right aligned - roughly A4 width is 595pt)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(0, 0, 0);
+    doc.text('TAX INVOICE', 545, 80, { align: 'right' });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(102, 102, 102);
+    doc.text(`Invoice No: ${invoiceNumber}`, 545, 105, { align: 'right' });
+    doc.text(`Date of Issue: ${invoiceDate}`, 545, 120, { align: 'right' });
+    doc.text(`Transaction ID: ${safePaymentId}`, 545, 135, { align: 'right' });
+
+    // Billed To
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Billed To:', 50, 190);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(102, 102, 102);
+    doc.text('Customer', 50, 210);
+    doc.text(email, 50, 225);
+
+    // Table Header
+    const tableTop = 280;
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text('DESCRIPTION', 50, tableTop);
+    doc.text('AMOUNT', 545, tableTop, { align: 'right' });
+    
+    doc.setDrawColor(229, 229, 229);
+    doc.line(50, tableTop + 10, 545, tableTop + 10);
+
+    // Table Body
+    const rowTop = tableTop + 35;
+    doc.setFontSize(12);
+    doc.text('iSuite Assistant Subscription', 50, rowTop);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(102, 102, 102);
+    doc.text(`Plan: ${planLabel}`, 50, rowTop + 18);
+    doc.text(`Billing Period: ${invoiceDate} - ${endDateFormatted}`, 50, rowTop + 33);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${displayCurrency} ${formattedTotal}`, 545, rowTop, { align: 'right' });
+
+    doc.setDrawColor(229, 229, 229);
+    doc.line(50, rowTop + 60, 545, rowTop + 60);
+
+    // Calculations
+    const calcTop = rowTop + 90;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(102, 102, 102);
+    doc.text('Subtotal', 420, calcTop, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${displayCurrency} ${formattedSubtotal}`, 545, calcTop, { align: 'right' });
+
+    doc.setTextColor(102, 102, 102);
+    doc.text('GST (18%)', 420, calcTop + 20, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${displayCurrency} ${formattedGst}`, 545, calcTop + 20, { align: 'right' });
+
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(1.5);
+    doc.line(350, calcTop + 35, 545, calcTop + 35);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text('Total Paid', 420, calcTop + 60, { align: 'right' });
+    doc.text(`${displayCurrency} ${formattedTotal}`, 545, calcTop + 60, { align: 'right' });
+
+    // Footer
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(153, 153, 153);
+    doc.text(`This is a computer generated receipt for ${email}`, 297, 750, { align: 'center' });
+    doc.text(`© ${new Date().getFullYear()} iSuite Assistant. All rights reserved.`, 297, 765, { align: 'center' });
+
+    // Convert to Buffer
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+
+    await transporter.sendMail({
+      from: `"${process.env.SMTP_FROM_NAME || 'iSuite Assistant'}" <${process.env.SMTP_FROM_EMAIL}>`,
+      to: email,
+      subject: "🎉 Your iSuite License Key & Tax Invoice",
+      attachments: amount ? [
+        {
+          filename: `${invoiceNumber}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ] : [],
       html: `
         <!DOCTYPE html>
         <html>
@@ -34,22 +185,50 @@ export async function POST(req: NextRequest) {
           <meta charset="utf-8">
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #f5f5f5; margin: 0; padding: 0; }
-            .container { max-width: 520px; margin: 0 auto; padding: 40px 20px; }
+            .container { max-width: 560px; margin: 0 auto; padding: 40px 20px; }
             .card { background: #161616; border: 1px solid #262626; border-radius: 16px; padding: 40px; text-align: center; }
-            .logo { font-size: 24px; font-weight: 800; margin-bottom: 24px; color: #f5f5f5; }
+            .logo { font-size: 28px; font-weight: 800; margin-bottom: 24px; color: #f5f5f5; }
             .logo span { color: #6366f1; }
-            h1 { font-size: 22px; margin: 0 0 8px; color: #f5f5f5; }
-            .subtitle { font-size: 14px; color: #a3a3a3; margin: 0 0 32px; }
-            .license-box { background: #0a0a0a; border: 2px dashed #6366f1; border-radius: 12px; padding: 20px; margin: 24px 0; }
-            .license-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #6366f1; margin: 0 0 8px; font-weight: 600; }
-            .license-key { font-size: 22px; font-family: 'Courier New', monospace; font-weight: 700; color: #f5f5f5; letter-spacing: 2px; margin: 0; word-break: break-all; }
-            .plan-info { font-size: 13px; color: #a3a3a3; margin: 16px 0 0; }
-            .steps { text-align: left; margin: 32px 0; }
-            .steps h2 { font-size: 14px; color: #f5f5f5; margin: 0 0 16px; }
-            .step { display: flex; gap: 12px; margin-bottom: 16px; }
+            h1 { font-size: 24px; margin: 0 0 8px; color: #f5f5f5; }
+            .subtitle { font-size: 15px; color: #a3a3a3; margin: 0 0 32px; }
+            
+            /* License Section */
+            .license-box { background: #0a0a0a; border: 2px dashed #6366f1; border-radius: 12px; padding: 24px; margin: 24px 0; }
+            .license-label { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #6366f1; margin: 0 0 12px; font-weight: 600; }
+            .license-key { font-size: 24px; font-family: 'Courier New', monospace; font-weight: 700; color: #f5f5f5; letter-spacing: 2px; margin: 0; word-break: break-all; }
+            
+            /* Invoice Header & Billing Info */
+            .invoice-wrapper { margin-top: 40px; padding-top: 32px; border-top: 1px dashed #262626; text-align: left; }
+            .billing-row { display: table; width: 100%; margin-bottom: 32px; }
+            .billing-col { display: table-cell; width: 50%; vertical-align: top; }
+            .billing-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #a3a3a3; margin: 0 0 8px; font-weight: 600; }
+            .billing-details { font-size: 14px; color: #f5f5f5; line-height: 1.6; margin: 0; }
+            .billing-details span { color: #a3a3a3; }
+            
+            .invoice-meta-row { display: table; width: 100%; margin-bottom: 24px; }
+            .invoice-title { font-size: 20px; font-weight: 700; color: #f5f5f5; margin: 0; display: table-cell; vertical-align: bottom; }
+            .invoice-meta { font-size: 13px; color: #a3a3a3; text-align: right; display: table-cell; vertical-align: bottom; }
+            .invoice-meta p { margin: 4px 0 0 0; }
+            
+            /* Invoice Table */
+            table.items-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+            .items-table th { text-align: left; padding: 12px; color: #a3a3a3; border-bottom: 1px solid #262626; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+            .items-table td { padding: 16px 12px; color: #f5f5f5; border-bottom: 1px solid #262626; vertical-align: top;}
+            .text-right { text-align: right !important; }
+            .calc-row td { padding: 8px 12px; border-bottom: none; color: #a3a3a3; font-size: 14px; }
+            .total-row td { font-weight: 700; font-size: 16px; padding-top: 16px; padding-bottom: 16px; color: #f5f5f5; border-top: 1px solid #262626; border-bottom: 2px solid #262626; margin-top: 8px; }
+            
+            /* Steps */
+            .steps { text-align: left; margin: 40px 0 0; padding: 24px; background: #0a0a0a; border-radius: 12px; border: 1px solid #262626; }
+            .steps h2 { font-size: 15px; color: #f5f5f5; margin: 0 0 20px; }
+            .step { display: flex; gap: 16px; margin-bottom: 16px; }
+            .step:last-child { margin-bottom: 0; }
             .step-num { width: 24px; height: 24px; background: #6366f1; color: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
-            .step-text { font-size: 13px; color: #a3a3a3; line-height: 1.5; }
+            .step-text { font-size: 14px; color: #a3a3a3; line-height: 1.5; margin-top: 2px; }
+            
+            /* Footer */
             .footer { text-align: center; margin-top: 32px; font-size: 12px; color: #525252; }
+            .footer p { margin: 6px 0; }
           </style>
         </head>
         <body>
@@ -64,30 +243,94 @@ export async function POST(req: NextRequest) {
                 <p class="license-key">${licenseKey}</p>
               </div>
 
-              <p class="plan-info">
-                <strong>Plan:</strong> ${planLabel}
-              </p>
-
               <div class="steps">
                 <h2>Getting Started:</h2>
                 <div class="step">
                   <span class="step-num">1</span>
-                  <span class="step-text">Download the iSuite desktop app from our website</span>
+                  <div class="step-text">Download the iSuite desktop app from <a href="https://isuiteassistant.com" style="color: #6366f1; text-decoration: none;">our website</a></div>
                 </div>
                 <div class="step">
                   <span class="step-num">2</span>
-                  <span class="step-text">Open the app and click "Activate License"</span>
+                  <div class="step-text">Open the app and click <strong>"Activate License"</strong></div>
                 </div>
                 <div class="step">
                   <span class="step-num">3</span>
-                  <span class="step-text">Paste your license key above and start using AI!</span>
+                  <div class="step-text">Paste your license key above and start exploring!</div>
                 </div>
               </div>
+
+              ${amount ? `
+              <div class="invoice-wrapper">
+                
+                <div class="billing-row">
+                  <div class="billing-col">
+                    <p class="billing-title">Billed From</p>
+                    <p class="billing-details">
+                      <strong>iSuite Assistant Inc.</strong><br/>
+                      <span>123 [Update Your Street Address]</span><br/>
+                      <span>[Update Your City, Country]</span><br/>
+                      <span>GSTIN: [Update Your GST No]</span>
+                    </p>
+                  </div>
+                  <div class="billing-col" style="text-align: right;">
+                    <p class="billing-title">Billed To</p>
+                    <p class="billing-details">
+                      <strong>Customer</strong><br/>
+                      <span>${email}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div class="invoice-meta-row">
+                  <h2 class="invoice-title">Tax Invoice</h2>
+                  <div class="invoice-meta">
+                    <p><strong>Invoice No:</strong> ${invoiceNumber}</p>
+                    <p><strong>Date of Issue:</strong> ${invoiceDate}</p>
+                    <p><strong>Payment ID:</strong> ${safePaymentId}</p>
+                  </div>
+                </div>
+
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th>Description</th>
+                      <th class="text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <strong style="color: #f5f5f5;">iSuite Assistant Subscription</strong><br/>
+                        <span style="color: #a3a3a3; font-size: 13px; display: inline-block; margin-top: 4px;">Plan: ${planLabel}</span><br/>
+                        <span style="color: #a3a3a3; font-size: 13px; display: inline-block; margin-top: 2px;">Billing Period: ${invoiceDate} &mdash; ${endDateFormatted}</span>
+                      </td>
+                      <td class="text-right">${displayCurrency} ${formattedTotal}</td>
+                    </tr>
+                    
+                    <tr><td colspan="2" style="padding: 16px 0 0 0; border: none;"></td></tr>
+                    
+                    <tr class="calc-row">
+                      <td class="text-right">Subtotal</td>
+                      <td class="text-right">${displayCurrency} ${formattedSubtotal}</td>
+                    </tr>
+                    <tr class="calc-row">
+                      <td class="text-right">GST (18%)</td>
+                      <td class="text-right">${displayCurrency} ${formattedGst}</td>
+                    </tr>
+                    <tr class="total-row">
+                      <td class="text-right">Total Paid</td>
+                      <td class="text-right">${displayCurrency} ${formattedTotal}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p style="font-size: 13px; color: #a3a3a3; text-align: center; margin-top: 32px;">A PDF copy of this invoice has been attached to this email.</p>
+              </div>
+              ` : ''}
             </div>
 
             <div class="footer">
+              <p>This is a computer generated receipt for ${email}</p>
               <p>© ${new Date().getFullYear()} iSuite Assistant. All rights reserved.</p>
-              <p>If you didn't request this email, please ignore it.</p>
             </div>
           </div>
         </body>
@@ -96,10 +339,11 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Send email error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to send email" },
+      { error: "Failed to send email", details: errorMessage },
       { status: 500 }
     );
   }

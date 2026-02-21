@@ -9,7 +9,6 @@ import { anyApi } from "convex/server";
 //
 // Events handled:
 //   • payment.captured  — Primary: license created when payment is captured
-//   • order.paid        — Fallback: same data, triggered when order is fully paid
 //   • payment.failed    — Logging only (no action)
 //
 // Security:
@@ -22,7 +21,7 @@ import { anyApi } from "convex/server";
 //   1. Go to Account & Settings → Webhooks → + Add New Webhook
 //   2. URL: https://your-domain.com/api/razorpay-webhook
 //   3. Secret: Generate a strong secret and add to RAZORPAY_WEBHOOK_SECRET env
-//   4. Events: Select "payment.captured" and "order.paid"
+//   4. Events: Select "payment.captured"
 //   5. Alert Email: your-email@example.com
 // ============================================================
 
@@ -74,23 +73,21 @@ function extractOrderData(payload: Record<string, unknown>): {
   plan: string;
   durationDays: number;
   amount: number;
+  currency: string;
 } | null {
   try {
     // payment.captured → payload.payment.entity
-    // order.paid → payload.payment.entity + payload.order.entity
     const paymentEntity = (payload?.payment as Record<string, unknown>)?.entity as Record<string, unknown>;
-    const orderEntity = (payload?.order as Record<string, unknown>)?.entity as Record<string, unknown>;
 
     if (!paymentEntity) return null;
 
     const paymentId = paymentEntity.id as string;
     const orderId = paymentEntity.order_id as string;
     const amount = paymentEntity.amount as number;
+    const currency = paymentEntity.currency as string || "INR";
 
-    // Notes can be on the order entity (order.paid) or we fall back to payment email
-    const notes: OrderNotes = (orderEntity?.notes as OrderNotes) ||
-                              (paymentEntity.notes as OrderNotes) ||
-                              {};
+    // Notes mapped directly from payment entity
+    const notes: OrderNotes = (paymentEntity.notes as OrderNotes) || {};
 
     const email = notes.email || (paymentEntity.email as string) || "";
     const plan = notes.plan || "";
@@ -101,7 +98,7 @@ function extractOrderData(payload: Record<string, unknown>): {
       return null;
     }
 
-    return { paymentId, orderId, email, plan, durationDays, amount };
+    return { paymentId, orderId, email, plan, durationDays, amount, currency };
   } catch (error) {
     console.error("[Webhook] Failed to extract order data:", error);
     return null;
@@ -146,8 +143,7 @@ export async function POST(req: NextRequest) {
 
     // 6. Handle events
     switch (eventType) {
-      case "payment.captured":
-      case "order.paid": {
+      case "payment.captured": {
         const orderData = extractOrderData(event.payload);
         if (!orderData) {
           console.error(`[Webhook] Could not extract order data from ${eventType}`);
@@ -190,6 +186,10 @@ export async function POST(req: NextRequest) {
               licenseKey: result.licenseKey,
               plan: orderData.plan,
               durationDays: orderData.durationDays,
+              amount: orderData.amount,
+              currency: orderData.currency,
+              paymentId: orderData.paymentId,
+              date: new Date().toISOString()
             }),
           });
         } catch (emailError) {

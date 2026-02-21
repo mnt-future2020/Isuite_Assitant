@@ -74,6 +74,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Verify payment is actually captured/authorized on Razorpay
+    let paymentAmount = 0;
+    let paymentCurrency = "INR";
+    let paymentDate = new Date().toISOString();
+
     try {
       const payment = await razorpay.payments.fetch(razorpay_payment_id);
       if (payment.status !== "captured" && payment.status !== "authorized") {
@@ -82,6 +86,11 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      
+      paymentAmount = Number(payment.amount);
+      paymentCurrency = payment.currency || "INR";
+      paymentDate = new Date((payment.created_at as number) * 1000).toISOString();
+      
     } catch (fetchError) {
       console.error("Failed to fetch payment status:", fetchError);
       // Continue — signature was valid (defense-in-depth)
@@ -113,6 +122,10 @@ export async function POST(req: NextRequest) {
           licenseKey: result.licenseKey,
           plan,
           durationDays,
+          amount: paymentAmount,
+          currency: paymentCurrency,
+          paymentId: razorpay_payment_id,
+          date: paymentDate
         }),
       });
     } catch (emailError) {
