@@ -279,7 +279,7 @@ export async function POST(req: NextRequest) {
             .steps h2 { font-size: 15px; color: #f5f5f5; margin: 0 0 20px; }
             .step { display: flex; gap: 16px; margin-bottom: 16px; }
             .step:last-child { margin-bottom: 0; }
-            .step-num { width: 24px; height: 24px; background: #6366f1; color: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+            .step-num { width: 24px; height: 24px; line-height: 24px; text-align: center; background: #6366f1; color: white; border-radius: 50%; display: inline-block; font-size: 12px; font-weight: 600; flex-shrink: 0; }
             .step-text { font-size: 14px; color: #a3a3a3; line-height: 1.5; margin-top: 2px; }
             
             /* Footer */
