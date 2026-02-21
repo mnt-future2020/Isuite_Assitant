@@ -10,19 +10,44 @@ const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 // Session ID Management
 // ============================================================
 
+// Safe localStorage helpers — prevent crashes in restricted envs (storage full, iframe sandbox, privacy mode)
+function safeGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    console.warn(`[Auth] Failed to read localStorage key: ${key}`);
+    return null;
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    console.warn(`[Auth] Failed to write localStorage key: ${key}`);
+  }
+}
+
+function safeRemoveItem(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    console.warn(`[Auth] Failed to remove localStorage key: ${key}`);
+  }
+}
+
 function getOrCreateSessionId(): string {
   const STORAGE_KEY = "isuite_session_id";
-  let sessionId = localStorage.getItem(STORAGE_KEY);
+  let sessionId = safeGetItem(STORAGE_KEY);
   if (!sessionId) {
-    // Generate a UUID v4
     sessionId = crypto.randomUUID();
-    localStorage.setItem(STORAGE_KEY, sessionId);
+    safeSetItem(STORAGE_KEY, sessionId);
   }
   return sessionId;
 }
 
 function clearSessionId(): void {
-  localStorage.removeItem("isuite_session_id");
+  safeRemoveItem("isuite_session_id");
 }
 
 // ============================================================
@@ -69,12 +94,12 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
   // Initialize from localStorage synchronously (avoids setState-in-effect)
   const [licenseKey, setLicenseKey] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("isuite_license_key");
+      return safeGetItem("isuite_license_key");
     }
     return null;
   });
   const [sessionId, setSessionId] = useState<string | null>(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("isuite_license_key")) {
+    if (typeof window !== "undefined" && safeGetItem("isuite_license_key")) {
       return getOrCreateSessionId();
     }
     return null;
@@ -82,7 +107,7 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<LicenseUser>(null);
   const [isLoading, setIsLoading] = useState(() => {
     if (typeof window !== "undefined") {
-      return !!localStorage.getItem("isuite_license_key");
+      return !!safeGetItem("isuite_license_key");
     }
     return true;
   });
@@ -104,7 +129,7 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
     if (licenseKey && userQuery !== undefined) {
       if (userQuery === null) {
         // Invalid license — clear it
-        localStorage.removeItem("isuite_license_key");
+        safeRemoveItem("isuite_license_key");
         clearSessionId();
         setLicenseKey(null);
         setSessionId(null);
@@ -164,7 +189,7 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
       const result = await activateMutation({ licenseKey: key, sessionId: sid });
 
       if (result.success && result.user) {
-        localStorage.setItem("isuite_license_key", key);
+        safeSetItem("isuite_license_key", key);
         setLicenseKey(key);
         setSessionId(sid);
         setUser({
@@ -199,7 +224,7 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
         console.error("Server logout failed:", e);
       }
     }
-    localStorage.removeItem("isuite_license_key");
+    safeRemoveItem("isuite_license_key");
     clearSessionId();
     setLicenseKey(null);
     setSessionId(null);

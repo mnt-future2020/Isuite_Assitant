@@ -48,10 +48,15 @@ async function chat(req, res) {
         assistantMessageId = null // Convex message ID for the assistant placeholder
     } = req.body;
 
-    console.log(`[CHAT] Request from ${userId} (${providerName}): ${message} - ChatId: ${chatId} - Images: ${images.length} - AssistantMsgId: ${assistantMessageId}`);
+    console.log(`[CHAT] Request from ${userId} (${providerName}): ${(message || '').slice(0, 80)}... - ChatId: ${chatId} - Images: ${images.length} - AssistantMsgId: ${assistantMessageId}`);
 
     if (!message && images.length === 0) {
         return res.status(400).json({ error: 'Message or images required' });
+    }
+
+    // Input length validation — prevent excessive token usage
+    if (message && message.length > 100000) {
+        return res.status(400).json({ error: 'Message too long. Maximum 100,000 characters allowed.' });
     }
 
     // Check if API key is provided for Claude provider
@@ -95,12 +100,8 @@ async function chat(req, res) {
 
     try {
         const session = await getOrCreateSession(userId);
-        
-        // Temporarily set the API key in environment for this request
-        const originalApiKey = process.env.ANTHROPIC_API_KEY;
-        if (anthropicApiKey) {
-            process.env.ANTHROPIC_API_KEY = anthropicApiKey;
-        }
+        // Note: API key is passed directly to the provider instance below.
+        // We do NOT set process.env.ANTHROPIC_API_KEY (thread-unsafe for concurrent requests).
         
         // Run the streaming in a detached manner — won't stop on client disconnect
         const streamingPromise = (async () => {
@@ -210,12 +211,6 @@ async function chat(req, res) {
                     res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
                 }
             } finally {
-                // Restore original API key
-                if (originalApiKey !== undefined) {
-                    process.env.ANTHROPIC_API_KEY = originalApiKey;
-                } else {
-                    delete process.env.ANTHROPIC_API_KEY;
-                }
 
                 // Close SSE if client still connected
                 clearInterval(heartbeatInterval);

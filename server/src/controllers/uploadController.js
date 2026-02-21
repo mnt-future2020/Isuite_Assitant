@@ -4,9 +4,27 @@ import os from 'os';
 
 // Config - Conservative limits to protect user's API tokens
 const STORAGE_DIR = path.join(os.homedir(), 'Documents', 'ISuite_Images');
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file (reduced from 25MB)
-const MAX_TOTAL_SIZE = 20 * 1024 * 1024; // 20MB total per request (reduced from 50MB)
-const MAX_FILES = 3; // Maximum 3 files per request (reduced from 10)
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
+const MAX_TOTAL_SIZE = 20 * 1024 * 1024; // 20MB total per request
+const MAX_FILES = 3; // Maximum 3 files per request
+
+// Blocked file extensions (executable/dangerous types)
+const BLOCKED_EXTENSIONS = new Set([
+    'exe', 'bat', 'cmd', 'sh', 'ps1', 'msi', 'dll', 'sys',
+    'com', 'scr', 'vbs', 'vbe', 'wsf', 'wsh', 'cpl', 'inf',
+    'reg', 'rgs', 'lnk', 'pif',
+]);
+
+// Sanitize filename to prevent path traversal and other attacks
+function sanitizeFilename(name) {
+    // Remove any path separators and null bytes
+    let safe = name.replace(/[\\/:\0]/g, '_');
+    // Remove any leading dots (hidden files) or double-dots (traversal)
+    safe = safe.replace(/^\.+/, '');
+    // Collapse multiple underscores and trim
+    safe = safe.replace(/_+/g, '_').trim();
+    return safe || 'unnamed_file';
+}
 
 // Ensure storage dir exists
 if (!fs.existsSync(STORAGE_DIR)) {
@@ -43,6 +61,17 @@ export async function uploadImage(req, res) {
                 continue;
             }
 
+            // Sanitize filename
+            const safeName = sanitizeFilename(name);
+
+            // Get and validate extension
+            const ext = (safeName.split('.').pop() || 'bin').toLowerCase();
+            if (BLOCKED_EXTENSIONS.has(ext)) {
+                return res.status(400).json({
+                    error: `File type ".${ext}" is not allowed for security reasons.`
+                });
+            }
+
             // Decode base64 to get actual file size
             const buffer = Buffer.from(data, 'base64');
             const fileSize = buffer.length;
@@ -50,7 +79,7 @@ export async function uploadImage(req, res) {
             // Validate individual file size
             if (fileSize > MAX_FILE_SIZE) {
                 return res.status(400).json({ 
-                    error: `File "${name}" is too large. Maximum size is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB per file.` 
+                    error: `File "${safeName}" is too large. Maximum size is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB per file.` 
                 });
             }
 
@@ -62,8 +91,7 @@ export async function uploadImage(req, res) {
                 });
             }
 
-            // Get file extension
-            const ext = name.split('.').pop() || 'bin';
+            // Generate safe, randomized filename
             const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
             const filepath = path.join(STORAGE_DIR, filename);
             
