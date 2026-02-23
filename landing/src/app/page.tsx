@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Script from "next/script";
-import { Check, Terminal, Cpu, Shield, ArrowRight, Code, Layers, Download } from "lucide-react";
+import { Check, Shield, ArrowRight, Layers, Download } from "lucide-react";
 
 // --- Types & Config ---
 
@@ -53,14 +54,38 @@ const PLANS = [
 ];
 
 const INTEGRATIONS = [
-  { name: "VS Code", icon: "💻" },
-  { name: "GitHub", icon: "🐙" },
-  { name: "Slack", icon: "💬" },
-  { name: "Notion", icon: "📝" },
-  { name: "Gmail", icon: "📧" },
-  { name: "Figma", icon: "🎨" },
-  { name: "Linear", icon: "🔷" },
-  { name: "Discord", icon: "🎮" },
+  { 
+    name: "VS Code", 
+    icon: <svg viewBox="0 0 256 256" className="w-8 h-8"><path fill="#0065A9" d="M184.72 0l-123.6 22.82-38.3 35 152.05 155.02L256 186.04z"/><path fill="#007ACC" d="M256 186.04L174.85 256l-9.15-5.27V124.67z"/><path fill="#1F9CF0" d="M184.72 0L256 69.96v116.08l-81.15-61.37z"/><path fill="#0065A9" d="M165.7 124.67v126.06l-47.5-35.45z"/><path fill="#007ACC" d="M22.82 57.82l95.38 74.34-95.38 74.57-22.82-16.74v-115.4z"/></svg> 
+  },
+  { 
+    name: "GitHub", 
+    icon: <svg viewBox="0 0 98 96" className="w-8 h-8"><path fill="#fff" fillRule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z"/></svg> 
+  },
+  { 
+    name: "Slack", 
+    icon: <svg viewBox="0 0 244.8 244.8" className="w-8 h-8"><path fill="#e01e5a" d="M89.3 118.4V89.3c0-16-13-29-29-29s-29 13-29 29 13 29 29 29h29z"/><path fill="#e01e5a" d="M29 118.4c-16 0-29 13-29 29s13 29 29 29h29.2c16 0 29-13 29-29s-13-29-29-29H29z"/><path fill="#36c5f0" d="M126.5 89.3V59.2c0-16 13-29 29-29s29 13 29 29-13 29-29 29h-29z"/><path fill="#36c5f0" d="M126.5 29c0-16-13-29-29-29s-29 13-29 29v29.2c0 16 13 29 29 29s29-13 29-29V29z"/><path fill="#2eb67d" d="M156.4 126.5v29.1c0 16 13 29 29 29s29-13 29-29-13-29-29-29h-29z"/><path fill="#2eb67d" d="M216.7 126.5c16 0 29-13 29-29s-13-29-29-29h-29.1c-16 0-29 13-29 29s13 29 29 29h29.1z"/><path fill="#ecb22e" d="M118.4 156.4v29.1c0 16-13 29-29 29s-29-13-29-29 13-29 29-29h29z"/><path fill="#ecb22e" d="M118.4 216.7c0 16 13 29 29 29s29-13 29-29v-29.2c0-16-13-29-29-29s-29 13-29 29v29.2z"/></svg> 
+  },
+  { 
+    name: "Notion", 
+    icon: <svg viewBox="0 0 1024 1024" className="w-8 h-8"><path fill="#fff" d="M848.33 342.32c-3.1 3.2-12.27 4.19-15.02 4.19H501.9l-118.4-159.2h281.42s50.45 6.78 69.32 23.33 114.1 131.68 114.1 131.68zm-41.25 43v418.42c0 18.25-13.88 47-32.96 55.45-19.08 8.45-316.59 133.09-316.59 133.09v-543.83zM161.43 331.6s2.59-17.7 19.34-26.65c16.75-8.95 240-97.88 240-97.88v588.62l12.75 32c0 0 54.45 28.53 103.41 12.39v-623.63L336.87 141H256S182 147 167 155c-15 8-15 16-15 48L151.48 767.8s-7.15 67.55 49.6 42.71c56.75-24.84 230-98.37 230-98.37l-49.88-66.6H275.46v-345l81.46 123.6v.05zm142.06 63.85l112.56 169.1 27.65.65V410.82h-36V375.4zM475.25 801S742.85 687.2 787.49 668.3C804 661.32 809.52 642.43 809.52 626V538h.04v-112.9l-149.33 55.47v282l-15.55-14.99V487L501.5 433l-26.25 15.02z"/></svg> 
+  },
+  { 
+    name: "Gmail", 
+    icon: <svg viewBox="0 0 24 24" className="w-8 h-8"><path fill="#fbbc04" d="M19 14.5v-6L12 13 5 8.5v6c0 1.66 1.34 3 3 3h8c1.66 0 3-1.34 3-3z"/><path fill="#ea4335" d="M19 8.5L12 13 5 8.5A2.99 2.99 0 0 1 7.6 5h8.8c1.19 0 2.22.71 2.72 1.74l-.12 1.76z"/><path fill="#34a853" d="M5 8.5V14.5c0 .35.06.69.17 1L5 15.5A2.99 2.99 0 0 1 2 12.5v-4A2.99 2.99 0 0 1 5 5.5v3z"/><path fill="#4285f4" d="M19 8.5V14.5c0 .35-.06.69-.17 1L19 15.5A2.99 2.99 0 0 0 22 12.5v-4A2.99 2.99 0 0 0 19 5.5v3z"/></svg> 
+  },
+  { 
+    name: "Figma", 
+    icon: <svg viewBox="0 0 38 57" className="w-8 h-8"><path fill="#1abcfe" d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z"/><path fill="#0acf83" d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 1 1-19 0z"/><path fill="#ff7262" d="M19 0v19h9.5a9.5 9.5 0 1 0 0-19H19z"/><path fill="#f24e1e" d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"/><path fill="#a259ff" d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"/></svg> 
+  },
+  { 
+    name: "Linear", 
+    icon: <svg viewBox="0 0 24 24" className="w-8 h-8"><path fill="#5e6ad2" d="M5.485 5.485C6.892 4.08 8.799 3.324 10.706 3.197H3V10.705C3.127 8.798 3.883 6.891 5.485 5.485zM5.485 18.514C6.892 19.92 8.799 20.676 10.706 20.803H3V13.295C3.127 15.202 3.883 17.109 5.485 18.514zM18.514 18.515C17.108 19.92 15.201 20.676 13.294 20.803H21V13.295C20.873 15.202 20.117 17.109 18.514 18.515zM21 3.197H13.294C15.201 3.324 17.108 4.08 18.514 5.485C20.117 6.891 20.873 8.798 21 10.705V3.197z"/><path fill="#fff" d="M17.03 6.968l-4.595 4.595 4.595 4.595-1.414 1.414L11.02 12.98 6.425 17.575 5.01 16.16 9.605 11.565 5.01 6.97 6.424 5.556l4.596 4.596L15.616 5.554l1.414 1.414z"/></svg> 
+  },
+  { 
+    name: "Discord", 
+    icon: <svg viewBox="0 0 127.14 96.36" className="w-8 h-8"><path fill="#5865F2" d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77.89,77.89,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.3,46,96.19,53,91.08,65.69,84.69,65.69Z"/></svg> 
+  },
 ];
 
 // --- Components ---
@@ -181,7 +206,10 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 border-b border-white/10 bg-black/80 backdrop-blur-md">
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="text-xl font-bold tracking-tighter">iSuite_</div>
+          <div className="flex items-center gap-2">
+            <Image src="/logo.png" alt="iSuite Logo" width={32} height={32} className="rounded" />
+            <div className="text-xl font-bold tracking-tighter hidden sm:block">iSuite_</div>
+          </div>
           <div className="hidden md:flex gap-8 text-sm font-[var(--font-mono)] text-white/60">
             <a href="#features" className="hover:text-white transition-colors">FEATURES</a>
             <a href="#integrations" className="hover:text-white transition-colors">INTEGRATIONS</a>
@@ -202,7 +230,7 @@ export default function LandingPage() {
           <div className="md:col-span-8 z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 border border-white/20 rounded-full mb-8 bg-white/5 backdrop-blur-sm">
               <span className="w-2 h-2 rounded-full bg-[var(--accent-highlight)] animate-pulse" />
-              <span className="text-xs font-[var(--font-mono)] uppercase tracking-wider text-white/80">System Online v2.0</span>
+              <span className="text-xs font-[var(--font-mono)] uppercase tracking-wider text-white/80">iSuite Neural Engine</span>
             </div>
             
             <h1 className="text-display-giant fade-in">
@@ -222,8 +250,8 @@ export default function LandingPage() {
                 Get Access <ArrowRight className="w-5 h-5" />
               </a>
               <div className="px-8 py-4 border border-white/20 text-white/80 font-[var(--font-mono)] flex items-center justify-center gap-3">
-                <Terminal className="w-5 h-5" />
-                <span>npm install isuite</span>
+                <Download className="w-5 h-5" />
+                <span>Download App</span>
               </div>
             </div>
           </div>
@@ -238,15 +266,18 @@ export default function LandingPage() {
                   <span className="ml-auto opacity-50">user@isuite:~</span>
                 </div>
                 <div className="space-y-2">
-                  <p><span className="text-[var(--accent-highlight)]">➜</span> <span className="text-white">analyze_screen.exe</span></p>
-                  <p className="text-white/40">[PROCESS] Capturing context...</p>
-                  <p className="text-white/40">[PROCESS] Analyzing visual elements...</p>
-                  <p className="text-[var(--accent-highlight)]">✔ Context identified: React Component (App.tsx)</p>
-                  <p><span className="text-[var(--accent-highlight)]">➜</span> <span className="text-white">generate_refactor</span></p>
-                  <p className="text-white"> Generating optimization plan...</p>
+                  <p><span className="text-[var(--accent-highlight)]">➜</span> <span className="text-white">isuite_agent --task &quot;Build and run a payment webhook route&quot;</span></p>
+                  <p className="text-white/40">[AGENT] Analyzing project structure...</p>
+                  <p className="text-white/40">[AGENT] Creating route.ts...</p>
+                  <p className="text-white/40">[AGENT] Installing stripe SDK...</p>
+                  <p className="text-[var(--accent-highlight)]">✔ Dependencies installed and server restarted.</p>
+                  <p><span className="text-[var(--accent-highlight)]">➜</span> <span className="text-white">route.ts</span></p>
+                  <p className="text-white"> Writing webhook logic...</p>
                   <div className="mt-4 p-3 bg-black/50 border border-white/10 rounded">
-                    <span className="text-blue-400">function</span> <span className="text-yellow-400">optimize</span>() {"{"}
-                    <br />&nbsp;&nbsp;<span className="text-purple-400">return</span> <span className="text-green-400">&quot;Efficiency +100%&quot;</span>;
+                    <span className="text-blue-400">export async function</span> <span className="text-yellow-400">POST</span>(req: Request) {"{"}
+                    <br />&nbsp;&nbsp;<span className="text-blue-400">const</span> body = <span className="text-purple-400">await</span> req.<span className="text-green-400">json()</span>;
+                    <br />&nbsp;&nbsp;<span className="text-purple-400">await</span> db.insert(payments).values(body);
+                    <br />&nbsp;&nbsp;<span className="text-purple-400">return new</span> <span className="text-yellow-400">Response</span>(<span className="text-green-400">&quot;Success&quot;</span>);
                     <br />{"}"}
                   </div>
                 </div>
@@ -266,8 +297,8 @@ export default function LandingPage() {
              <div className="orbit-container">
                 {/* Core */}
                 <div className="absolute w-24 h-24 bg-white rounded-full blur-[60px] opacity-20" />
-                <div className="absolute w-16 h-16 bg-white rounded-full flex items-center justify-center z-20 shadow-[0_0_50px_rgba(255,255,255,0.3)]">
-                  <span className="font-bold text-black text-xl">Ai</span>
+                <div className="absolute w-20 h-20 bg-white rounded-full flex items-center justify-center z-20 shadow-[0_0_50px_rgba(255,255,255,0.3)] overflow-hidden">
+                  <Image src="/logo.png" alt="iSuite Core" width={60} height={60} className="object-cover" />
                 </div>
 
                 {/* Rings */}
@@ -282,12 +313,12 @@ export default function LandingPage() {
                   return (
                     <div
                       key={app.name}
-                      className="orbit-item"
+                      className="orbit-item bg-black border border-white/10 rounded-2xl flex items-center justify-center p-3 shadow-2xl"
                       style={{
                         transform: `rotate(${angle}deg) translate(${radius}px) rotate(-${angle}deg)`,
                       }}
                     >
-                      <span className="text-2xl">{app.icon}</span>
+                      {app.icon}
                     </div>
                   );
                 })}
@@ -297,32 +328,31 @@ export default function LandingPage() {
           {/* Right: Content */}
           <div>
             <h2 className="text-display-large mb-8">
-              Connected<br />
-              <span className="text-white/40">Everything.</span>
+              Agentic App<br />
+              <span className="text-white/40">Connections.</span>
             </h2>
             <p className="text-xl text-white/60 mb-12">
-              Your workflow isn&apos;t isolated. iSuite bridges the gap between your 
-              local environment and your favorite tools.
+              Empower iSuite with actual reading and writing capabilities across your entire tech stack. Your agent does the heavily lifting.
             </p>
             
             <div className="space-y-6">
                <div className="group editorial-card p-6 flex items-center gap-6">
                   <div className="w-12 h-12 bg-white/10 flex items-center justify-center rounded-lg">
-                    <Code className="w-6 h-6" />
+                    <Layers className="w-6 h-6 text-indigo-400" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">Codebase Aware</h3>
-                    <p className="text-sm text-white/50">Reads your local git repositories and understands context.</p>
+                    <h3 className="font-bold text-lg">Omnichannel Execution</h3>
+                    <p className="text-sm text-white/50">iSuite fetches Linear tasks, reads Slack threads, and drafts Gmail responses autonomously.</p>
                   </div>
                </div>
                
                <div className="group editorial-card p-6 flex items-center gap-6">
                   <div className="w-12 h-12 bg-white/10 flex items-center justify-center rounded-lg">
-                    <Layers className="w-6 h-6" />
+                    <Shield className="w-6 h-6 text-green-400" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">Cross-App Drag & Drop</h3>
-                    <p className="text-sm text-white/50">Pull a Linear ticket into a VS Code instruction instantly.</p>
+                    <h3 className="font-bold text-lg">Secure Granular Auth</h3>
+                    <p className="text-sm text-white/50">Connect 100+ tools instantly via OAuth. You control exactly what data your agent accesses.</p>
                   </div>
                </div>
             </div>
@@ -335,48 +365,54 @@ export default function LandingPage() {
               {/* Duplicated content for seamless loop */}
               {[...Array(2)].map((_, i) => (
                 <div key={i} className="flex gap-24">
-                  <span>Running System Check...</span>
-                  <span className="text-[var(--accent-highlight)]">{'/// CONNECTED'}</span>
-                  <span>VS Code Integration Active</span>
-                  <span>Fetching Github PRs...</span>
-                  <span className="text-[var(--accent-highlight)]">{'/// SYNC COMPLETE'}</span>
-                  <span>Slack Threads Imported</span>
+                  <span>Authenticating Gmail...</span>
+                  <span className="text-[var(--accent-highlight)]">{'/// FETCHING LINEAR ISSUES'}</span>
+                  <span>Drafting Github PR...</span>
+                  <span>Reading Notion Docs...</span>
+                  <span className="text-[var(--accent-highlight)]">{'/// POSTING TO SLACK'}</span>
+                  <span>Agent Action Complete</span>
                 </div>
               ))}
            </div>
         </div>
       </section>
 
-      {/* --- FEATURES (Coding Focus) --- */}
+      {/* --- FEATURES (Neural Layer Focus) --- */}
       <section id="features" className="py-32 px-6 max-w-[1400px] mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-end mb-24 gap-8">
           <h2 className="text-display-large max-w-2xl">
-            Born to <br />
-            <span className="text-[var(--accent-highlight)]">Write Code.</span>
+            The Ultimate <br />
+            <span className="text-[var(--accent-highlight)]">Neural Layer.</span>
           </h2>
           <p className="text-xl text-white/60 max-w-md font-[var(--font-mono)] border-l border-white/20 pl-6">
-            {'// Start coding 10x faster.'}<br />
-            {'// No context switching.'}<br />
-            {'// Pure flow state.'}
+            {'// Context aware across apps.'}<br />
+            {'// No more copying & pasting.'}<br />
+            {'// Pure workflow automation.'}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
            {/* Card 1 */}
            <div className="editorial-card min-h-[400px] flex flex-col justify-between group">
-              <Cpu className="w-10 h-10 text-white/40 group-hover:text-white transition-colors" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-white/40 group-hover:text-white transition-colors">
+                <path d="m18 16 4-4-4-4"/>
+                <path d="m6 8-4 4 4 4"/>
+                <path d="m14.5 4-5 16"/>
+              </svg>
               <div>
-                <h3 className="text-2xl font-bold mb-4">Local Execution</h3>
-                <p className="text-white/60">Scripts run on your machine, not in the cloud. Access files, ports, and localhost servers directly.</p>
+                <h3 className="text-2xl font-bold mb-4">Autonomous Coding</h3>
+                <p className="text-white/60">Simply describe your task. iSuite will autonomously write code, execute it locally, debug errors, and complete your development tasks.</p>
               </div>
            </div>
            
            {/* Card 2 */}
            <div className="editorial-card min-h-[400px] flex flex-col justify-between group bg-white/5">
-              <Terminal className="w-10 h-10 text-[var(--accent-highlight)]" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-[var(--accent-highlight)]">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
               <div>
-                <h3 className="text-2xl font-bold mb-4 text-[var(--accent-highlight)]">Terminal Integ.</h3>
-                <p className="text-white/60">Execute commands, installing packages, and debug errors without leaving the chat interface.</p>
+                <h3 className="text-2xl font-bold mb-4 text-[var(--accent-highlight)]">Workflow Automation</h3>
+                <p className="text-white/60">Trigger complex, multi-step actions across your installed desktop applications with simple language commands.</p>
               </div>
            </div>
            
@@ -384,8 +420,8 @@ export default function LandingPage() {
            <div className="editorial-card min-h-[400px] flex flex-col justify-between group">
               <Shield className="w-10 h-10 text-white/40 group-hover:text-white transition-colors" />
               <div>
-                <h3 className="text-2xl font-bold mb-4">Privacy First</h3>
-                <p className="text-white/60">Your codebase never leaves your machine. Training data is opted-out by default.</p>
+                <h3 className="text-2xl font-bold mb-4">Local & Private</h3>
+                <p className="text-white/60">Your context stays on your machine. iSuite operates locally, ensuring your sensitive data and proprietary code never leaks.</p>
               </div>
            </div>
         </div>
@@ -401,7 +437,7 @@ export default function LandingPage() {
              <input 
                 id="email-input"
                 type="email" 
-                placeholder="developer@example.com"
+                placeholder="you@domain.com"
                 className="w-full bg-transparent border-b border-white/20 py-4 text-xl focus:outline-none focus:border-white transition-colors placeholder:text-white/20"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -465,7 +501,10 @@ export default function LandingPage() {
       <footer className="py-20 border-t border-white/10 px-6">
         <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
            <div>
-              <div className="text-2xl font-bold tracking-tighter mb-4">iSuite_</div>
+              <div className="flex items-center gap-2 mb-4">
+                <Image src="/logo.png" alt="iSuite Logo" width={32} height={32} className="rounded" />
+                <div className="text-2xl font-bold tracking-tighter">iSuite_</div>
+              </div>
               <p className="text-white/40 max-w-xs text-sm">
                 The intelligent layer for your desktop.
                 <br />Built for those who build.
