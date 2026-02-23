@@ -5,6 +5,31 @@ import { v } from "convex/values";
 // VALIDATION
 // ============================================================
 
+// Get license by key (for settings page)
+export const getByKey = query({
+  args: { licenseKey: v.string() },
+  handler: async (ctx, args) => {
+    const license = await ctx.db
+      .query("licenses")
+      .withIndex("by_key", (q) => q.eq("licenseKey", args.licenseKey))
+      .unique();
+
+    if (!license) {
+      return null;
+    }
+
+    return {
+      licenseKey: license.licenseKey,
+      email: license.email,
+      plan: license.plan,
+      isActive: license.isActive,
+      createdAt: license.createdAt,
+      expiresAt: license.expiresAt,
+      durationDays: license.durationDays,
+    };
+  },
+});
+
 // Validate a license key (public query — used by landing page & app)
 export const validate = query({
   args: { licenseKey: v.string() },
