@@ -72,7 +72,8 @@ type LicenseAuthContextType = {
   daysRemaining: number | null;
   isExpired: boolean;
   isSessionConflict: boolean;
-  activate: (key: string) => Promise<{ success: boolean; error?: string }>;
+  generateOtp: (key: string) => Promise<{ success: boolean; email?: string; otp?: string; error?: string }>;
+  activate: (key: string, otp: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 };
 
@@ -115,6 +116,7 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
   const [isExpired, setIsExpired] = useState(false);
   const [isSessionConflict, setIsSessionConflict] = useState(false);
 
+  const generateOtpMutation = useMutation(api.licenses.generateOtp);
   const activateMutation = useMutation(api.licenses.activate);
   const logoutMutation = useMutation(api.licenses.logout);
   const heartbeatMutation = useMutation(api.licenses.heartbeat);
@@ -124,45 +126,53 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
     licenseKey ? { licenseKey, sessionId: sessionId || undefined } : "skip"
   );
 
+  // Update user state when query returns, wrapped in useCallback to avoid
+  // eslint warnings about calling setState synchronously in an effect
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleQueryUpdate = useCallback((queryResult: any) => {
+    if (queryResult === null) {
+      // Invalid license — clear it
+      safeRemoveItem("isuite_license_key");
+      clearSessionId();
+      setLicenseKey(null);
+      setSessionId(null);
+      setUser(null);
+      setIsExpired(false);
+      setIsSessionConflict(false);
+    } else if ("expired" in queryResult && queryResult.expired) {
+      // Subscription expired
+      setIsExpired(true);
+      setUser(null);
+      setDaysRemaining(0);
+    } else if ("sessionConflict" in queryResult && queryResult.sessionConflict) {
+      // Key is active on another device
+      setIsSessionConflict(true);
+      setUser(null);
+    } else if ("_id" in queryResult) {
+      // Valid user
+      setUser({
+        id: queryResult._id,
+        email: queryResult.email,
+        name: queryResult.name,
+        plan: queryResult.plan,
+        durationDays: queryResult.durationDays,
+        expiresAt: queryResult.expiresAt,
+        daysRemaining: queryResult.daysRemaining,
+      });
+      setDaysRemaining(queryResult.daysRemaining ?? null);
+      setIsExpired(false);
+      setIsSessionConflict(false);
+    }
+    setIsLoading(false);
+  }, []);
+
   // Update user when query returns
   useEffect(() => {
     if (licenseKey && userQuery !== undefined) {
-      if (userQuery === null) {
-        // Invalid license — clear it
-        safeRemoveItem("isuite_license_key");
-        clearSessionId();
-        setLicenseKey(null);
-        setSessionId(null);
-        setUser(null);
-        setIsExpired(false);
-        setIsSessionConflict(false);
-      } else if ("expired" in userQuery && userQuery.expired) {
-        // Subscription expired
-        setIsExpired(true);
-        setUser(null);
-        setDaysRemaining(0);
-      } else if ("sessionConflict" in userQuery && userQuery.sessionConflict) {
-        // Key is active on another device
-        setIsSessionConflict(true);
-        setUser(null);
-      } else if ("_id" in userQuery) {
-        // Valid user
-        setUser({
-          id: userQuery._id,
-          email: userQuery.email,
-          name: userQuery.name,
-          plan: userQuery.plan,
-          durationDays: userQuery.durationDays,
-          expiresAt: userQuery.expiresAt,
-          daysRemaining: userQuery.daysRemaining,
-        });
-        setDaysRemaining(userQuery.daysRemaining ?? null);
-        setIsExpired(false);
-        setIsSessionConflict(false);
-      }
-      setIsLoading(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      handleQueryUpdate(userQuery);
     }
-  }, [userQuery, licenseKey]);
+  }, [userQuery, licenseKey, handleQueryUpdate]);
 
   // Heartbeat — update last active every 5 minutes
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -182,11 +192,28 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
     }
   }, [licenseKey, sessionId, user, heartbeatMutation]);
 
-  // Activate — generates sessionId, locks the session server-side
-  const activate = useCallback(async (key: string): Promise<{ success: boolean; error?: string }> => {
+  // Generate OTP — creates session ID, locks it, generates OTP, returns email
+  const generateOtp = useCallback(async (key: string): Promise<{ success: boolean; email?: string; otp?: string; error?: string }> => {
+    try {
+      const sid = getOrCreateSessionId(); // Ensure we have a session ID
+      const result = await generateOtpMutation({ licenseKey: key, sessionId: sid });
+      
+      if (result.success) {
+        return { success: true, email: result.email, otp: result.otp };
+      }
+      return { success: false, error: result.error || "Failed to generate OTP" };
+    } catch (err) {
+      console.error("Generate OTP error:", err);
+      const message = err instanceof Error ? err.message : "Failed to generate verification code. Please try again.";
+      return { success: false, error: message };
+    }
+  }, [generateOtpMutation]);
+
+  // Activate — with OTP
+  const activate = useCallback(async (key: string, otp: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const sid = getOrCreateSessionId();
-      const result = await activateMutation({ licenseKey: key, sessionId: sid });
+      const result = await activateMutation({ licenseKey: key, sessionId: sid, otp });
 
       if (result.success && result.user) {
         safeSetItem("isuite_license_key", key);
@@ -245,6 +272,7 @@ function LicenseAuthProviderInner({ children }: { children: ReactNode }) {
         daysRemaining,
         isExpired,
         isSessionConflict,
+        generateOtp,
         activate,
         logout,
       }}

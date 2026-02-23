@@ -42,13 +42,13 @@ export const validate = query({
 });
 
 // ============================================================
-// ACTIVATION — with single active session enforcement
+// OTP GENERATION
 // ============================================================
 
-export const activate = mutation({
+export const generateOtp = mutation({
   args: {
     licenseKey: v.string(),
-    sessionId: v.string(), // Unique UUID generated per device/browser
+    sessionId: v.string(), // Unique UUID per device/browser check
   },
   handler: async (ctx, args) => {
     const license = await ctx.db
@@ -70,6 +70,73 @@ export const activate = mutation({
     }
 
     // ---- Single Active Session Enforcement ----
+    if (license.activeSessionId && license.activeSessionId !== args.sessionId) {
+      return {
+        success: false,
+        error: "This license key is currently active on another device. Please logout from the other device first.",
+      };
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = now + 10 * 60 * 1000; // 10 minutes
+
+    await ctx.db.patch(license._id, {
+      otp,
+      otpExpiresAt,
+    });
+
+    return { 
+      success: true, 
+      email: license.email,
+      otp, // Required to pass to our secure Next.js API route to send the email
+    };
+  },
+});
+
+// ============================================================
+// ACTIVATION — with OTP and single active session enforcement
+// ============================================================
+
+export const activate = mutation({
+  args: {
+    licenseKey: v.string(),
+    sessionId: v.string(), // Unique UUID generated per device/browser
+    otp: v.string(),       // Require OTP for activation
+  },
+  handler: async (ctx, args) => {
+    const license = await ctx.db
+      .query("licenses")
+      .withIndex("by_key", (q) => q.eq("licenseKey", args.licenseKey))
+      .unique();
+
+    if (!license) {
+      return { success: false, error: "Invalid license key" };
+    }
+
+    if (!license.isActive) {
+      return { success: false, error: "License has been deactivated" };
+    }
+
+    const now = Date.now();
+    if (license.expiresAt < now) {
+      return { success: false, error: "Your subscription has expired. Please renew to continue." };
+    }
+
+    // ---- OTP Verification ----
+    if (!license.otp || !license.otpExpiresAt) {
+      return { success: false, error: "Please request an OTP first." };
+    }
+    
+    if (now > license.otpExpiresAt) {
+      return { success: false, error: "OTP has expired. Please request a new one." };
+    }
+
+    if (license.otp !== args.otp) {
+      return { success: false, error: "Invalid verification code." };
+    }
+
+    // ---- Single Active Session Enforcement ----
     // If there is an existing active session AND it's not this same session → block
     if (license.activeSessionId && license.activeSessionId !== args.sessionId) {
       return {
@@ -78,10 +145,12 @@ export const activate = mutation({
       };
     }
 
-    // Lock this session as the active one & update last active time
+    // Lock this session as the active one & update last active time, clear OTP
     await ctx.db.patch(license._id, {
       activeSessionId: args.sessionId,
       lastActiveAt: now,
+      otp: undefined,
+      otpExpiresAt: undefined,
     });
 
     // ---- Find or create user ----

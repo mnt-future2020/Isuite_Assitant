@@ -14,6 +14,8 @@ export default defineSchema({
     activeSessionId: v.optional(v.string()), // Current active session UUID (null = logged out)
     paymentId: v.optional(v.string()),       // Razorpay payment ID for reference
     lastActiveAt: v.optional(v.number()),    // Last activity timestamp
+    otp: v.optional(v.string()),             // Email verification code 
+    otpExpiresAt: v.optional(v.number()),    // Expiration timestamp for OTP
   })
     .index("by_key", ["licenseKey"])
     .index("by_email", ["email"])

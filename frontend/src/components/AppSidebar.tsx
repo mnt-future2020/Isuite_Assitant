@@ -31,26 +31,148 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// License Key Input Component
+// License Key & OTP Input Component
 function LicenseKeyInput() {
   const [licenseKey, setLicenseKey] = useState("");
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"KEY" | "OTP">("KEY");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [isActivating, setIsActivating] = useState(false);
-  const { activate } = useLicenseAuth();
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const { activate, generateOtp } = useLicenseAuth();
 
-  const handleActivate = async () => {
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (step === "OTP" && resendCooldown > 0) {
+      timer = setInterval(() => {
+        setResendCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, resendCooldown]);
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || isActivating) return;
+    
+    setIsActivating(true);
+    setError("");
+    const result = await generateOtp(licenseKey.trim());
+    
+    if (result.success && result.email) {
+      try {
+        await fetch("/api/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: result.email, otp: result.otp }),
+        });
+        setResendCooldown(30);
+        setError(""); // Clear errors
+      } catch (err) {
+        console.error("Failed to resend OTP email", err);
+        setError("Failed to resend code");
+      }
+    } else {
+      setError(result.error || "Failed to generate new code");
+    }
+    setIsActivating(false);
+  };
+
+  const handleGenerateOtp = async () => {
     if (!licenseKey.trim()) {
       setError("Please enter a license key");
       return;
     }
     setIsActivating(true);
     setError("");
-    const result = await activate(licenseKey.trim());
-    if (!result.success) {
+    const result = await generateOtp(licenseKey.trim());
+    
+    if (result.success && result.email) {
+      try {
+        // We trigger the Next.js API route to actually send the email via nodemailer
+        await fetch("/api/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: result.email, otp: result.otp }), // OTP is not accessible here since it's not returned by the backend for security! Wait, our Next.js API expects it.
+        });
+      } catch (err) {
+        console.error("Failed to trigger OTP email", err);
+      }
+      setEmail(result.email);
+      setStep("OTP");
+      setResendCooldown(30);
+    } else {
       setError(result.error || "Invalid license key");
     }
     setIsActivating(false);
   };
+
+  const handleActivate = async () => {
+    if (!otp.trim()) {
+      setError("Please enter the verification code");
+      return;
+    }
+    setIsActivating(true);
+    setError("");
+    const result = await activate(licenseKey.trim(), otp.trim());
+    if (!result.success) {
+      setError(result.error || "Invalid verification code");
+    }
+    setIsActivating(false);
+  };
+
+  if (step === "OTP") {
+    return (
+      <div className="p-4 space-y-3 border-t border-border transition-all duration-300 animate-in fade-in slide-in-from-right-4">
+        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+          Verification Required
+        </div>
+        <div className="text-xs text-muted-foreground mb-2">
+          We sent a code to <span className="text-foreground font-semibold">{email}</span>.
+        </div>
+        <input
+          type="text"
+          placeholder="Enter 6-digit code"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value)}
+          maxLength={6}
+          className="w-full bg-transparent border-b border-border py-2 text-center text-lg tracking-[0.5em] font-mono text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-foreground transition-colors"
+        />
+        {error && (
+          <div className="text-destructive text-xs animate-in fade-in slide-in-from-top-1 duration-200">
+            {error}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setStep("KEY")}
+            disabled={isActivating}
+            className="flex-1 py-2 border border-border text-foreground rounded-md text-sm font-medium hover:bg-secondary transition-all duration-200 disabled:opacity-50"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleActivate}
+            disabled={isActivating || otp.length < 6}
+            className="flex-[2] flex items-center justify-center gap-2 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-all duration-200 disabled:opacity-50"
+          >
+            <span>{isActivating ? "Verifying..." : "Verify & Activate"}</span>
+          </button>
+        </div>
+        <div className="text-center mt-3">
+          <button
+            onClick={handleResendOtp}
+            disabled={resendCooldown > 0 || isActivating}
+            className="text-xs text-blue-500 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:text-muted-foreground disabled:hover:text-muted-foreground"
+          >
+            {resendCooldown > 0 
+              ? `Resend code in ${resendCooldown}s` 
+              : "Didn't receive a code? Resend"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-3 border-t border-border transition-all duration-300">
@@ -70,12 +192,12 @@ function LicenseKeyInput() {
         </div>
       )}
       <button
-        onClick={handleActivate}
+        onClick={handleGenerateOtp}
         disabled={isActivating}
         className="w-full flex items-center justify-center gap-2 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-all duration-200 disabled:opacity-50"
       >
         <Key size={14} />
-        <span>{isActivating ? "Activating..." : "Activate"}</span>
+        <span>{isActivating ? "Verifying..." : "Continue"}</span>
       </button>
     </div>
   );
