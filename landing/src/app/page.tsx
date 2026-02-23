@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Script from "next/script";
-import { Check, Shield, ArrowRight, Layers, Download } from "lucide-react";
+import { Check, Shield, ArrowRight, Layers, Download, AlertCircle, X } from "lucide-react";
 
 // --- Types & Config ---
 
@@ -95,8 +94,8 @@ function Orbiter({ duration, size, reverse = false }: { duration: number; size: 
     <div
       className="absolute border border-white/10 rounded-full animate-[spin_linear_infinite]"
       style={{
-        width: size,
-        height: size,
+        width: `${size}%`,
+        height: `${size}%`,
         animationDuration: `${duration}s`,
         animationDirection: reverse ? "reverse" : "normal",
       }}
@@ -110,11 +109,12 @@ export default function LandingPage() {
   const [email, setEmail] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<(typeof PLANS)[0] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   // Handle Payment
   const handlePurchase = async (plan: (typeof PLANS)[0]) => {
     if (!email) {
-      alert("Please enter your email address first.");
+      setAlertMessage("Please enter your email address first.");
       document.getElementById("email-input")?.focus();
       return;
     }
@@ -122,7 +122,7 @@ export default function LandingPage() {
     setIsProcessing(true);
 
     if (!window.Razorpay) {
-      alert("Razorpay SDK is still loading or failed to load. Please try again in a moment.");
+      setAlertMessage("Razorpay SDK is still loading or failed to load. Please try again in a moment.");
       setIsProcessing(false);
       return;
     }
@@ -173,10 +173,10 @@ export default function LandingPage() {
                 email.trim()
               )}&plan=${plan.name}&duration=${plan.duration}`;
             } else {
-              alert(verifyData.error || "Payment verification failed.");
+              setAlertMessage(verifyData.error || "Payment verification failed.");
             }
           } catch {
-            alert("Payment verification failed. Please contact support.");
+            setAlertMessage("Payment verification failed. Please contact support.");
           }
         },
         prefill: { email: email },
@@ -191,7 +191,7 @@ export default function LandingPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
-      alert(error.message || "Something went wrong.");
+      setAlertMessage(error.message || "Something went wrong.");
       setIsProcessing(false);
     }
   };
@@ -207,8 +207,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 w-full z-50 border-b border-white/10 bg-black/80 backdrop-blur-md">
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="iSuite Logo" width={32} height={32} className="rounded" />
-            <div className="text-xl font-bold tracking-tighter hidden sm:block">iSuite_</div>
+            <div className="text-xl font-bold tracking-tighter">iSuite_</div>
           </div>
           <div className="hidden md:flex gap-8 text-sm font-[var(--font-mono)] text-white/60">
             <a href="#features" className="hover:text-white transition-colors">FEATURES</a>
@@ -257,8 +256,8 @@ export default function LandingPage() {
           </div>
 
           {/* Abstract Visual (Simulated UI) */}
-          <div className="md:col-span-4 relative h-[400px] fade-in delay-300">
-             <div className="absolute inset-0 border border-white/10 bg-white/5 backdrop-blur-lg p-6 font-[var(--font-mono)] text-xs leading-relaxed text-white/60 overflow-hidden">
+          <div className="md:col-span-4 relative h-[400px] fade-in delay-300 mt-12 md:mt-0">
+             <div className="absolute inset-0 border border-white/10 bg-white/5 backdrop-blur-lg p-6 font-[var(--font-mono)] text-[10px] sm:text-xs leading-relaxed text-white/60 overflow-hidden">
                 <div className="flex items-center gap-2 border-b border-white/10 pb-4 mb-4">
                   <div className="w-3 h-3 rounded-full bg-red-500/50" />
                   <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
@@ -298,24 +297,27 @@ export default function LandingPage() {
                 {/* Core */}
                 <div className="absolute w-24 h-24 bg-white rounded-full blur-[60px] opacity-20" />
                 <div className="absolute w-20 h-20 bg-white rounded-full flex items-center justify-center z-20 shadow-[0_0_50px_rgba(255,255,255,0.3)] overflow-hidden">
-                  <Image src="/logo.png" alt="iSuite Core" width={60} height={60} className="object-cover" />
+                  <span className="text-3xl font-black text-black tracking-tighter">AI</span>
                 </div>
 
                 {/* Rings */}
-                <Orbiter duration={20} size={300} />
-                <Orbiter duration={30} size={450} reverse />
-                <Orbiter duration={40} size={600} />
+                <Orbiter duration={20} size={50} />
+                <Orbiter duration={30} size={75} reverse />
+                <Orbiter duration={40} size={100} />
 
                 {/* Floating Apps */}
                 {INTEGRATIONS.map((app, i) => {
-                  const angle = (i / INTEGRATIONS.length) * 360;
-                  const radius = 225; // Middle ring
+                  const angle = (i / INTEGRATIONS.length) * 2 * Math.PI;
+                  const radiusPerc = 37.5; // Middle ring
+                  const left = 50 + Math.cos(angle) * radiusPerc;
+                  const top = 50 + Math.sin(angle) * radiusPerc;
                   return (
                     <div
                       key={app.name}
-                      className="orbit-item bg-black border border-white/10 rounded-2xl flex items-center justify-center p-3 shadow-2xl"
+                      className="orbit-item bg-black border border-white/10 rounded-2xl flex items-center justify-center p-3 shadow-2xl absolute -translate-x-1/2 -translate-y-1/2"
                       style={{
-                        transform: `rotate(${angle}deg) translate(${radius}px) rotate(-${angle}deg)`,
+                        left: `${left}%`,
+                        top: `${top}%`,
                       }}
                     >
                       {app.icon}
@@ -379,7 +381,7 @@ export default function LandingPage() {
 
       {/* --- FEATURES (Neural Layer Focus) --- */}
       <section id="features" className="py-32 px-6 max-w-[1400px] mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-24 gap-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-24 gap-8">
           <h2 className="text-display-large max-w-2xl">
             The Ultimate <br />
             <span className="text-[var(--accent-highlight)]">Neural Layer.</span>
@@ -444,7 +446,7 @@ export default function LandingPage() {
              />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
              {PLANS.map((plan) => (
                <button
                  key={plan.id}
@@ -502,7 +504,6 @@ export default function LandingPage() {
         <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
            <div>
               <div className="flex items-center gap-2 mb-4">
-                <Image src="/logo.png" alt="iSuite Logo" width={32} height={32} className="rounded" />
                 <div className="text-2xl font-bold tracking-tighter">iSuite_</div>
               </div>
               <p className="text-white/40 max-w-xs text-sm">
@@ -531,6 +532,40 @@ export default function LandingPage() {
            <span>SYSTEM.STATUS: OPERATIONAL</span>
         </div>
       </footer>
+
+      {/* Alert Modal */}
+      {alertMessage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setAlertMessage(null)} />
+          <div className="bg-[#111] border border-white/10 rounded-xl w-full max-w-sm shadow-2xl relative z-10 flex flex-col">
+            <div className="flex items-start justify-between p-5 border-b border-white/5">
+              <div className="flex items-center gap-3 text-red-500">
+                <AlertCircle className="w-5 h-5" />
+                <h3 className="font-bold text-base text-white uppercase tracking-wider">Notice</h3>
+              </div>
+              <button 
+                onClick={() => setAlertMessage(null)}
+                className="text-white/40 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-white/70 text-sm leading-relaxed text-left">
+                {alertMessage}
+              </p>
+            </div>
+            <div className="p-4 border-t border-white/5 flex justify-end">
+              <button
+                onClick={() => setAlertMessage(null)}
+                className="px-6 py-2.5 bg-white text-black font-bold text-xs hover:bg-white/90 transition-colors uppercase tracking-widest"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
